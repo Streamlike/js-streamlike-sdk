@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamlike JS SDK - Demo</title>
+    <title>Streamlike JS SDK - Player Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -13,12 +13,13 @@
 
 <div class="container">
     <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
-    <h1>Streamlike JS SDK Demo</h1>
+    <h1>Streamlike JS SDK - Player Demo</h1>
     <p>
         This page is a demonstration of how to use the <code>js-streamlike-sdk</code> library.<br>
         The video player below is dynamically embedded using the <code>setResponsiveIframe</code> method.<br>
         The dynamic transcript is generated using the <code>generateWords</code> method.
     </p>
+    <a href="index.html" target="_self">Back</a>
 
     <form id="media-form">
         <label for="media-id-input">Media ID:</label>
@@ -38,10 +39,9 @@
 <script type="module">
     // 1. Import the class from the compiled library file
     // Note: This path is relative to the location of this HTML file.
-    import {Streamlike} from '../dist/index.mjs';
+    import * as Streamlike from '../dist/index.mjs';
 
     // 2. Initialize the class
-    const streamlike = new Streamlike();
     const containerId = 'player-container';
     const form = document.getElementById('media-form');
     const input = document.getElementById('media-id-input');
@@ -50,7 +50,9 @@
     form.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevent form from submitting the traditional way
         const mediaId = input.value;
-
+        await loadMedia(mediaId);
+    });
+    async function loadMedia(mediaId) {
         if (!mediaId) {
             console.error('Media ID is required.');
             return;
@@ -62,9 +64,6 @@
         // 4. Call the method to create the iframe
         console.log(`%cEmbedding media "${mediaId}" into "#${containerId}"...`, 'color: cyan');
 
-        // set debug mode
-        streamlike.debug = true;
-
         // set iframe player options
         const options = {
             debug: true,
@@ -74,7 +73,7 @@
         };
 
         // set iframe
-        const response = await streamlike.setResponsiveIframe(containerId, mediaId, options);
+        const response = await Streamlike.setResponsiveIframe(containerId, mediaId, options);
 
         try {
             // 5. Handle the response
@@ -86,7 +85,7 @@
                     console.log(wordsUrl);
                     if (wordsUrl) {
                         const playerIframe = document.getElementById(containerId).querySelector('iframe');
-                        await streamlike.generateWords(wordsUrl, {
+                        await Streamlike.generateWords(wordsUrl, {
                             wordsContainer: 'words-container',
                             iframePlayer: playerIframe,
                             debug: true
@@ -101,6 +100,10 @@
         } catch (error) {
             console.error('Error:', error);
         }
+    }
+    // Load the initial playlist on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMedia(input.value);
     });
 </script>
 

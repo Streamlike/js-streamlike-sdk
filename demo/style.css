@@ -154,3 +154,12 @@ button:hover {
     color: #777;
     grid-column: 1 / -1;
 }
+
+.thumbnail{
+    width: 100%;
+    min-height: 150px;
+}
+
+#div-preview-mode{
+    margin-bottom: 2rem;
+}
