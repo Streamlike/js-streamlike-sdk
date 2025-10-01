@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike SDK - Playlist Mosaic Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK Demo</h1>
+    <p>
+        This demo page uses the <code>getMedias</code> and <code>setResponsiveIframe</code> methods
+        to display a playlist as an interactive mosaic.
+    </p>
+
+    <form id="playlist-form">
+        <label for="playlist-id-input">Playlist ID:</label>
+        <input type="text" id="playlist-id-input" value="5d926de37e6e531d" required>
+        <button type="submit">Load Playlist</button>
+    </form>
+    <hr>
+
+    <h2 id="media_name"></h2>
+    <div id="main-player-container" class="d-none"></div>
+    <div id="playlist-mosaic-container"></div>
+</div>
+
+<script type="module">
+    import {Streamlike} from '/dist/index.mjs';
+
+    const sl = new Streamlike();
+    sl.debug = true;
+
+    const mainPlayerContainer = document.getElementById('main-player-container');
+    const mediaName = document.getElementById('media_name');
+    const mosaicContainer = document.getElementById('playlist-mosaic-container');
+    const playlistForm = document.getElementById('playlist-form');
+    const playlistInput = document.getElementById('playlist-id-input');
+
+    /**
+     * Loads a video into the player with the given media ID and optional autoplay setting.
+     *
+     * @param {string} mediaId - The unique identifier of the media to be loaded into the player.
+     * @param {boolean} [autostart=false] - Indicates whether the video should start playing automatically upon loading.
+     * @return {void} This function does not return a value.
+     */
+    function loadVideoInPlayer(mediaId, autostart = false) {
+        const playerOptions = {
+            player: {
+                active_color: "293c5a"
+            },
+            iframe:{
+                onLoad: () => {
+                    mainPlayerContainer.classList.remove('d-none');
+                }
+            }
+        };
+        if (autostart) {
+            playerOptions.player.autoplay = true;
+        }
+        sl.setResponsiveIframe(mainPlayerContainer, mediaId, playerOptions).then(response => {
+            if (response.res){
+                mediaName.innerHTML = response.data.metadata.global.name;
+            }
+        });
+    }
+
+    /**
+     * Loads the specified playlist, populates the UI with its contents,
+     * and initializes the main player with the first media in the playlist.
+     *
+     * @param {string} playlistId - The unique identifier of the playlist to be loaded.
+     * @return {Promise<void>} A promise that resolves when the playlist has been successfully loaded and the UI updated.
+     */
+    async function loadPlaylist(playlistId) {
+        if (!playlistId) {
+            console.error("Playlist ID is required.");
+            return;
+        }
+
+        // Reset display
+        mainPlayerContainer.innerHTML = '';
+        mosaicContainer.innerHTML = '<div id="loading-state">Loading playlist...</div>';
+
+        try {
+            const options = {
+                debug: true,
+            }
+            const playlistData = await sl.getMedias(playlistId, options);
+            console.log("Playlist data:", playlistData);
+            if (playlistData && playlistData.playlist.medias && playlistData.playlist.medias.length > 0) {
+                mosaicContainer.innerHTML = '';
+
+                loadVideoInPlayer(playlistData.playlist.medias[0].media.metadata.global.media_id);
+
+                playlistData.playlist.medias.forEach(media => {
+                    const metadata = media.media.metadata;
+                    const media_id = metadata.global.media_id;
+                    const name = metadata.global.name;
+                    const thumbnailUrl = metadata.customization.cover.thumbnailextralarge_url;
+                    const item = document.createElement('div');
+                    item.className = 'mosaic-item';
+                    item.dataset.mediaId = media_id;
+
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = thumbnailUrl;
+                    thumbnail.alt = name;
+
+                    const title = document.createElement('div');
+                    title.className = 'title';
+                    title.textContent =name;
+
+                    item.appendChild(thumbnail);
+                    item.appendChild(title);
+
+                    item.addEventListener('click', () => {
+                        loadVideoInPlayer(media_id,true);
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    });
+                    mosaicContainer.appendChild(item);
+                });
+
+            } else {
+                document.getElementById('loading-state').textContent = 'Playlist not found or empty.';
+            }
+        } catch (error) {
+            console.error("Failed to load playlist:", error);
+            if (document.getElementById('loading-state')) {
+                document.getElementById('loading-state').textContent = 'Error loading playlist.';
+            }
+        }
+    }
+
+    // Handle form submission
+    playlistForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        loadPlaylist(playlistInput.value);
+    });
+
+    // Load the initial playlist on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPlaylist(playlistInput.value);
+    });
+</script>
+
+</body>
+</html>
+

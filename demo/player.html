@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK Demo</h1>
+    <p>
+        This page is a demonstration of how to use the <code>js-streamlike-sdk</code> library.<br>
+        The video player below is dynamically embedded using the <code>setResponsiveIframe</code> method.<br>
+        The dynamic transcript is generated using the <code>generateWords</code> method.
+    </p>
+
+    <form id="media-form">
+        <label for="media-id-input">Media ID:</label>
+        <input type="text" id="media-id-input" placeholder="your-media-id-here" required value="d1e17302e833552a">
+        <button type="submit">Load Player</button>
+    </form>
+
+    <hr>
+
+    <!-- The div that will contain the video player -->
+    <div id="player-container"></div>
+    <!-- The div that will contain the words -->
+    <div id="words-container"></div>
+</div>
+
+<!-- The script uses the "module" version of the library -->
+<script type="module">
+    // 1. Import the class from the compiled library file
+    // Note: This path is relative to the location of this HTML file.
+    import {Streamlike} from '../dist/index.mjs';
+
+    // 2. Initialize the class
+    const streamlike = new Streamlike();
+    const containerId = 'player-container';
+    const form = document.getElementById('media-form');
+    const input = document.getElementById('media-id-input');
+
+    // 3. Add an event listener to the form
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent form from submitting the traditional way
+        const mediaId = input.value;
+
+        if (!mediaId) {
+            console.error('Media ID is required.');
+            return;
+        }
+
+        // Clear previous player if any
+        document.getElementById(containerId).innerHTML = '';
+
+        // 4. Call the method to create the iframe
+        console.log(`%cEmbedding media "${mediaId}" into "#${containerId}"...`, 'color: cyan');
+
+        // set debug mode
+        streamlike.debug = true;
+
+        // set iframe player options
+        const options = {
+            debug: true,
+            player: {
+                events: 1
+            }
+        };
+
+        // set iframe
+        const response = await streamlike.setResponsiveIframe(containerId, mediaId, options);
+
+        try {
+            // 5. Handle the response
+            if (response.res) {
+                console.groupCollapsed('%c✔ Player loaded successfully!', 'color: green');
+                console.log(response.data);
+                if (response.data?.metadata?.subtitles) {
+                    const wordsUrl = response.data?.metadata?.subtitles[0].subtitle.url.words ?? null;
+                    console.log(wordsUrl);
+                    if (wordsUrl) {
+                        const playerIframe = document.getElementById(containerId).querySelector('iframe');
+                        await streamlike.generateWords(wordsUrl, {
+                            wordsContainer: 'words-container',
+                            iframePlayer: playerIframe,
+                            debug: true
+                        });
+                    }
+                }
+                console.groupEnd();
+            } else {
+                console.error('Error loading player:', response.errors);
+            }
+            console.log('%c✔ iframe loaded', 'color: green');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    });
+</script>
+
+</body>
+</html>

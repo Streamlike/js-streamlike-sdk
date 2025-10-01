@@ -1,0 +1,28 @@
+{
+  "name": "js-streamlike-sdk",
+  "version": "1.0.0",
+  "description": "A TypeScript library to interact with the Streamlike WS and embed players.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "streamlike",
+    "video",
+    "player",
+    "webservice",
+    "responsive"
+  ],
+  "author": "Mediatech",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5"
+  },
+  "files": [
+    "dist"
+  ]
+}

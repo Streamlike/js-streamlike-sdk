@@ -1,0 +1,156 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.container {
+    max-width: 800px;
+    width: 100%;
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #293c5a;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+p {
+    line-height: 1.6;
+}
+
+code {
+    background-color: #eef;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+}
+
+form {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+label {
+    font-weight: bold;
+}
+
+input[type="text"] {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    flex-grow: 1;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background-color: #293c5a;
+    color: white;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #3d5a80;
+}
+
+#player-container {
+    margin-top: 2rem;
+}
+
+.logo {
+    width: 200px;
+    height: auto;
+    margin-bottom: 1.5rem;
+    display: block;
+}
+
+#words-container {
+    margin-top: 1rem;
+    padding: 1rem 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+
+#words-container  span.active {
+    color: #293c5a;
+    text-decoration: underline;
+
+}
+
+#words-container  span {
+    cursor: pointer;
+    color: #898a8c;
+}
+
+#main-player-container {
+    width: 100%;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#playlist-mosaic-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.mosaic-item {
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mosaic-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.mosaic-item img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.d-none {
+    display: none;
+}
+
+.mosaic-item .title {
+    padding: 0.75rem;
+    background-color: #ffffff;
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#loading-state {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2rem;
+    color: #777;
+    grid-column: 1 / -1;
+}
