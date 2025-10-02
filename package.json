@@ -1,12 +1,13 @@
 {
   "name": "js-streamlike-sdk",
   "version": "1.0.0",
-  "description": "A TypeScript library to interact with the Streamlike WS and embed players.",
+  "description": "Streamlike JavaScript SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
