@@ -11,9 +11,6 @@ The Streamlike JS SDK is a TypeScript library designed to interact with the Stre
 ## Live Demo
   You can see a live demonstration of the library's features, including player and playlist examples, by opening the files in the `demo` folder.
 
-  [Launch Demo](demo/index.html)
-
-
 ## Installation
 To install the library, use npm:
 

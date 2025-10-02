@@ -23,7 +23,7 @@
 
     <form id="playlist-form">
         <label for="playlist-id-input">Playlist ID:</label>
-        <input type="text" id="playlist-id-input" value="221d255a6b2e2c4c" required>
+        <input type="text" id="playlist-id-input" value="5d926de37e6e531d" required>
         <button type="submit">Load Playlist</button>
 
     </form>
@@ -34,9 +34,9 @@
     <div id="div-preview-mode">
         <label for="preview-mode">Preview mode : </label>
         <select id="preview-mode">
-            <option value="animation">Animation</option>
-            <option value="scrubbing">Scrubbing</option>
             <option value="fixed">Fixed</option>
+            <option value="animation" disabled>Animation (soon)</option>
+            <option value="scrubbing" disabled>Scrubbing (soon)</option>
         </select>
     </div>
     <div id="playlist-mosaic-container"></div>
@@ -64,7 +64,6 @@
             player: {
                 active_color: "293c5a"
             },
-            host: 'recette5.streamlike.com',
             iframe: {
                 onLoad: () => {
                     mainPlayerContainer.classList.remove('d-none');
@@ -101,7 +100,11 @@
         try {
             const options = {
                 debug: true,
-                host: 'recette5.streamlike.com',
+                playlist: {
+                    pagesize: 6,
+                    orderby: 'releasedate',
+                    sortorder: 'down',
+                }
             }
             const playlistData = await Streamlike.getMedias(playlistId, options);
             console.log("Playlist data:", playlistData);
