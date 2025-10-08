@@ -1,6 +1,6 @@
 import { IframeOptions, TypeId } from "../types/player";
 import { CallbackResponse, HostWs } from "../types/base";
-import { getWs } from "../utils/api";
+import {fixHost, getWs} from "../utils/api";
 
 /**
  * Sets up a responsive iframe within a specified target element.
@@ -47,18 +47,18 @@ export async function setResponsiveIframe(
     };
 
     if (typeId === TypeId.Streamout) {
-        createIframe(`//${host}/streamout/play?str_id=${id}${playerOptionsString}`, ratio);
+        createIframe(`${fixHost(host)}/streamout/play?str_id=${id}${playerOptionsString}`, ratio);
         return { res: true, data: null, errors: null };
     }
 
-    const srcPlayer = `//${host}/play?${typeId}=${id}${playerOptionsString}`;
+    const srcPlayer = `${fixHost(host)}/play?${typeId}=${id}${playerOptionsString}`;
     let mediaWsUrl: string;
 
-    if (typeId === TypeId.Permalink) mediaWsUrl = `//${host}/ws/media?permalink=${id}`;
+    if (typeId === TypeId.Permalink) mediaWsUrl = `${fixHost(host)}/ws/media?permalink=${id}`;
     else if (typeId === TypeId.LiveId) {
         const parts = id.split("_");
-        mediaWsUrl = `https://${host}/ws/media?media_id=${parts[parts.length - 1]}`;
-    } else mediaWsUrl = `https://${host}/ws/media?media_id=${id}`;
+        mediaWsUrl = `${fixHost(host)}/ws/media?media_id=${parts[parts.length - 1]}`;
+    } else mediaWsUrl = `${fixHost(host)}/ws/media?media_id=${id}`;
 
     const ws = await getWs<any>(mediaWsUrl, debug);
     const dataMedia = ws.data?.media;
