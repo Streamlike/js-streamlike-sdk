@@ -1,6 +1,6 @@
 import { GetRelatedOptions } from "../types/api";
 import { BaseOptions, HostWs } from "../types/base";
-import { getWs, getWsMedia } from "../utils/api";
+import {fixHost, getWs, getWsMedia} from "../utils/api";
 
 /**
  * Fetches metadata for a given media ID.
@@ -27,7 +27,7 @@ export async function getRelated(mediaId: string, options: GetRelatedOptions = {
 
     const host = options?.host ?? HostWs.prod;
     const { related, debug } = options;
-    let url = `https://${host}/ws/related?media_id=${mediaId}`;
+    let url = `${fixHost(host)}/ws/related?media_id=${mediaId}`;
 
     if (related) {
         url += Object.entries(related).map(([name, value]) => `&${name}=${value}`).join('');
