@@ -1,6 +1,6 @@
 import {GetMediasOptions} from "../types/api";
 import {HostWs} from "../types/base";
-import {getWs} from "../utils/api";
+import {fixHost, getWs} from "../utils/api";
 
 /**
  * Fetches a list of media based on various criteria.
@@ -22,7 +22,7 @@ export async function getMedias(id: string | string[], options: GetMediasOptions
         });
     }
 
-    let url = api ? `https://${host}${urlParams.replace('&', '?')}` : `https://${host}/ws/playlist`;
+    let url = api ? `${fixHost(host)}${urlParams.replace('&', '?')}` : `${fixHost(host)}/ws/playlist`;
 
     if (!api) {
         if (type === 'company_id') url += `?company_id=${id}`;
