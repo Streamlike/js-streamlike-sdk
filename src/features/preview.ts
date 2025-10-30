@@ -1,6 +1,13 @@
+// path: src/features/preview.ts
 import {InteractivePreviewOptions, MediaCustomization, MosaicFrame, PreviewMode} from "../types/features";
-import {CallbackResponse, HostWs} from "../types/base";
+import {CallbackResponse} from "../types/api";
 
+/**
+ * Parses a VTT (Web Video Text Tracks) formatted text to extract mosaic frame information.
+ *
+ * @param {string} text - The VTT data as a string. The text contains lines with URL and coordinate information.
+ * @return {MosaicFrame[]} An array of objects representing mosaic frames, each containing the URL, x, and y coordinates.
+ */
 function _parseVttIndexes(text: string): MosaicFrame[] {
     const coordinates: MosaicFrame[] = [];
     const lineRegex = /^(.*?)#xywh=(\d+),(\d+),\d+,\d+$/;
@@ -18,7 +25,14 @@ function _parseVttIndexes(text: string): MosaicFrame[] {
 }
 
 /**
- * Initializes an interactive preview for a media in a target container.
+ * Generates an interactive thumbnail preview for a given target element. Depending on the mode,
+ * it allows for either scrubbing through frames or playing an animated preview. The frames are
+ * fetched and displayed based on the provided media customization and options.
+ *
+ * @param {string | HTMLElement} target - The target element or its ID where the thumbnail will be displayed.
+ * @param {MediaCustomization} mediaCustomization - Configuration object containing media details such as cover image and board URL.
+ * @param {InteractivePreviewOptions} options - Options for customizing the preview behavior such as mode, duration, frames per second, and debugging.
+ * @return {Promise<CallbackResponse>} Returns a promise that resolves with a response object containing whether the operation was successful, data details, or errors if any.
  */
 export async function generateThumbnail(
     target: string | HTMLElement,
@@ -113,19 +127,18 @@ export async function generateThumbnail(
         previewBox.style.backgroundPosition = 'center';
     });
 
-
-
-
-
     try {
         if (!mediaCustomization.board) {
             previewBox.style.cssText = `background-image: url('${mediaCustomization.cover.thumbnailextralarge_url}'); background-size: cover; background-position: center; cursor: pointer;`;
             return {res: true, data: null, errors: 'board not found'};
         }
-        console.log(mediaCustomization);
-        console.log(mediaCustomization.board[`${mosaicSize}_url`]);
         const response = await fetch(mediaCustomization.board[`${mosaicSize}_url`]);
-        if (!response.ok) throw new Error(`Media VTT not found.`);
+        if (!response.ok) {
+            const error = `Media VTT not found.`;
+            if (debug) console.warn(`Media VTT not found.`);
+            previewBox.style.cssText = `background-image: url('${mediaCustomization.cover.thumbnailextralarge_url}'); background-size: cover; background-position: center; cursor: pointer;`;
+            return {res: true, data: null, errors: error};
+        }
         allFrames = _parseVttIndexes(await response.text());
         calculateAndSampleFrames();
         if (allFrames.length === 0 && debug) console.warn("No frames found.");

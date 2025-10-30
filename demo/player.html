@@ -16,20 +16,20 @@
     <h1>Streamlike JS SDK - Player Demo</h1>
     <p>
         This page is a demonstration of how to use the <code>js-streamlike-sdk</code> library.<br>
-        The video player below is dynamically embedded using the <code>setResponsiveIframe</code> method.<br>
+        The video playerParams below is dynamically embedded using the <code>setResponsiveIframe</code> method.<br>
         The dynamic transcript is generated using the <code>generateWords</code> method.
     </p>
     <a href="index.html" target="_self">Back</a>
 
     <form id="media-form">
         <label for="media-id-input">Media ID:</label>
-        <input type="text" id="media-id-input" placeholder="your-media-id-here" required value="07bc58fe3d852b82">
+        <input type="text" id="media-id-input" placeholder="your-mediaParams-id-here" required value="07bc58fe3d852b82">
         <button type="submit">Load Player</button>
     </form>
 
     <hr>
 
-    <!-- The div that will contain the video player -->
+    <!-- The div that will contain the video playerParams -->
     <div id="player-container"></div>
     <!-- The div that will contain the words -->
     <div id="words-container"></div>
@@ -40,7 +40,6 @@
     // 1. Import the class from the compiled library file
     // Note: This path is relative to the location of this HTML file.
     import * as Streamlike from '../dist/index.mjs';
-
     // 2. Initialize the class
     const containerId = 'player-container';
     const form = document.getElementById('media-form');
@@ -52,36 +51,40 @@
         const mediaId = input.value;
         await loadMedia(mediaId);
     });
+
     async function loadMedia(mediaId) {
         if (!mediaId) {
             console.error('Media ID is required.');
             return;
         }
 
-        // Clear previous player if any
+        // Clear previous playerParams if any
         document.getElementById(containerId).innerHTML = '';
 
-        // 4. Call the method to create the iframe
-        console.log(`%cEmbedding media "${mediaId}" into "#${containerId}"...`, 'color: cyan');
+        // 4. Call the method to create the iframeParams
+        console.log(`%cEmbedding mediaParams "${mediaId}" into "#${containerId}"...`, 'color: cyan');
 
-        // set iframe player options
+        // set iframeParams options
         const options = {
-            debug: true,
-            player: {
+            playerParams: {
                 events: 1
+            },
+            baseOptions: {
+                debug: 1
             }
-        };
+        }
 
-        // set iframe
-        const response = await Streamlike.setResponsiveIframe(containerId, mediaId, options);
+        // set iframeParams
+        const response = await Streamlike.setResponsiveIframe(mediaId, containerId, options);
 
         try {
             // 5. Handle the response
             if (response.res) {
                 console.groupCollapsed('%c✔ Player loaded successfully!', 'color: green');
                 console.log(response.data);
-                if (response.data?.metadata?.subtitles) {
-                    const wordsUrl = response.data?.metadata?.subtitles[0].subtitle.url.words ?? null;
+                if (response.data) {
+                    const media = response.data;
+                    const wordsUrl = media.metadata.subtitles[0].subtitle.url.words ?? null;
                     console.log(wordsUrl);
                     if (wordsUrl) {
                         const playerIframe = document.getElementById(containerId).querySelector('iframe');
@@ -101,6 +104,7 @@
             console.error('Error:', error);
         }
     }
+
     // Load the initial playlist on page load
     document.addEventListener('DOMContentLoaded', () => {
         loadMedia(input.value);

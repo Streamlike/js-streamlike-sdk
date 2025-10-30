@@ -1,6 +1,8 @@
-import {BaseOptions} from "./base";
+// path: src/types/features.ts
 
 // --- Transcript/Words ---
+import {debugOptions} from "./api";
+
 export enum MosaicSize {
     Small = 'small',
     Large = 'large'
@@ -19,20 +21,14 @@ export interface Word {
     punctuation?: string | boolean;
 }
 
-export interface Subtitle {
-    subtitle: {
-        language_id: string;
-        url: {
-            words: string;
-            [key: string]: string;
-        };
-    };
-}
-
 export interface TranscriptOptions {
     wordsContainer: string | HTMLElement;
     iframePlayer: string | HTMLIFrameElement;
     debug?: boolean;
+    messages:{
+        loading: string;
+        error: string;
+    }
 }
 
 // --- Interactive Preview ---
@@ -43,7 +39,7 @@ export interface MosaicFrame {
     y: number;
 }
 
-export interface InteractivePreviewOptions extends BaseOptions {
+export interface InteractivePreviewOptions extends debugOptions {
     mode?: PreviewMode;
     duration?: number;
     fps?: number;
@@ -69,7 +65,7 @@ interface BoardUrls {
 }
 
 /**
- * Represents media customization options including cover images and mosaic/board configurations.
+ * Represents mediaParams customization options including cover images and mosaic/board configurations.
  */
 export interface MediaCustomization {
     cover: CoverUrls;

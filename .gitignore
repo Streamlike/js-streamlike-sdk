@@ -24,3 +24,5 @@ Thumbs.db
 .env.local
 .env.*.local
 *.local.json
+/demo-recette/
+/mon_diff.patch
