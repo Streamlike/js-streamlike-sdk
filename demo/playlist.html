@@ -15,8 +15,9 @@
     <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
     <h1>Streamlike JS SDK - Playlist Demo</h1>
     <p>
-        This demo page uses the <code>getMedias</code> and <code>generateThumbnail</code> methods
-        to display a playlist as an interactive mosaic.<p>
+        This demo page uses the <code>getWsPlaylist</code> and <code>generateThumbnail</code> methods
+        to display a playlist as an interactive mosaic.
+    <p>
 
     </p>
     <a href="index.html" target="_self">Back</a>
@@ -53,36 +54,42 @@
     const previewModeSelect = document.getElementById('preview-mode');
 
     /**
-     * Loads a video into the player with the given media ID and optional autoplay setting.
+     * Loads a video into the playerParams with the given mediaParams ID and optional autoplay setting.
      *
-     * @param {string} mediaId - The unique identifier of the media to be loaded into the player.
+     * @param {string} mediaId - The unique identifier of the mediaParams to be loaded into the playerParams.
      * @param {boolean} [autostart=false] - Indicates whether the video should start playing automatically upon loading.
      * @return {void} This function does not return a value.
      */
     function loadVideoInPlayer(mediaId, autostart = false) {
-        const playerOptions = {
-            player: {
+        const options = {
+            playerParams: {
                 active_color: "293c5a"
             },
-            iframe: {
+            iframeParams: {
                 onLoad: () => {
                     mainPlayerContainer.classList.remove('d-none');
                 }
+            },
+            baseOptions: {
+                debug: true,
             }
         };
         if (autostart) {
-            playerOptions.player.autoplay = true;
+            options.playerParams.autoplay = true;
         }
-        Streamlike.setResponsiveIframe(mainPlayerContainer, mediaId, playerOptions).then(response => {
+
+
+        Streamlike.setResponsiveIframe(mediaId, mainPlayerContainer, options).then(response => {
             if (response.res) {
-                mediaName.innerHTML = response.data.metadata.global.name;
+                mediaName.innerHTML = response.res.global.name;
             }
         });
     }
 
+
     /**
      * Loads the specified playlist, populates the UI with its contents,
-     * and initializes the main player with the first media in the playlist.
+     * and initializes the main playerParams with the first mediaParams in the playlist.
      *
      * @param {string} playlistId - The unique identifier of the playlist to be loaded.
      * @return {Promise<void>} A promise that resolves when the playlist has been successfully loaded and the UI updated.
@@ -98,22 +105,22 @@
         mosaicContainer.innerHTML = '<div id="loading-state">Loading playlist...</div>';
 
         try {
+            const params = {
+                pagesize: 6,
+                orderby: 'releasedate',
+                sortorder: 'down',
+            }
             const options = {
                 debug: true,
-                playlist: {
-                    pagesize: 6,
-                    orderby: 'releasedate',
-                    sortorder: 'down',
-                }
             }
-            const playlistData = await Streamlike.getMedias(playlistId, options);
+            const playlistData = await Streamlike.getMediasFromPlaylist(playlistId, params, options);
             console.log("Playlist data:", playlistData);
-            if (playlistData && playlistData.playlist.medias && playlistData.playlist.medias.length > 0) {
+            if (playlistData && playlistData.length > 0) {
                 mosaicContainer.innerHTML = '';
 
-                // loadVideoInPlayer(playlistData.playlist.medias[0].media.metadata.global.media_id);
+                // loadVideoInPlayer(playlistData.playlist.medias[0].mediaParams.metadata.global.media_id);
 
-                playlistData.playlist.medias.forEach(media => {
+                playlistData.forEach(media => {
                     const metadata = media.media.metadata;
                     const media_id = metadata.global.media_id;
                     const name = metadata.global.name;
@@ -136,9 +143,10 @@
                     item.appendChild(thumbnail);
                     item.appendChild(title);
 
-
                     item.addEventListener('click', (e) => {
+                        console.log("Clicked on item:", e.target.tagName);
                         if (e.target.tagName !== 'VIDEO') {
+                            console.log("Loading video:", media_id);
                             loadVideoInPlayer(media_id, true);
                             window.scrollTo({top: 0, behavior: 'smooth'});
                         }
