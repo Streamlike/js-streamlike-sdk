@@ -14,6 +14,11 @@ export enum PreviewMode {
     Fixed = 'fixed'
 }
 
+export enum FitMode {
+    Cover = 'cover',
+    Contain = 'contain'
+}
+
 export interface Word {
     start: number;
     end: number;
@@ -37,6 +42,8 @@ export interface MosaicFrame {
     url: string;
     x: number;
     y: number;
+    width: number;
+    height: number;
 }
 
 export interface InteractivePreviewOptions extends debugOptions {
@@ -44,6 +51,10 @@ export interface InteractivePreviewOptions extends debugOptions {
     duration?: number;
     fps?: number;
     mosaicSize?: MosaicSize;
+    fitMode?: {
+        cover? :FitMode
+        animation?: FitMode;
+    };
 }
 
 /**

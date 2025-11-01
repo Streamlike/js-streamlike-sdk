@@ -109,6 +109,7 @@ button:hover {
 }
 
 #playlist-mosaic-container {
+    margin-top: 2rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1.5rem;
@@ -160,6 +161,6 @@ button:hover {
     min-height: 150px;
 }
 
-#div-preview-mode{
-    margin-bottom: 2rem;
+#div-preview-mode, #div-fit-mode{
+    margin-bottom: 1rem;
 }
