@@ -18,20 +18,23 @@ To install the library, use npm:
 
 ## Usage
 Here's how to use the main features of the library.
-### 1. Embed a video playerParams
-Use the `setResponsiveIframe` function to embed a video playerParams in an HTML container.
+### 1. Embed a video player
+Use the `setResponsiveIframe` function to embed a video player in an HTML container.
+
+**Note on Breaking Change**: The return structure of `setResponsiveIframe` has changed. Previously, media metadata was accessed via `response.res.global.name`. It is now accessed via `response.data.metadata.global.name`. Please update your code accordingly.
+
 ```html
 <!-- Your HTML container -->
-<div id="playerParams-container"></div>
+<div id="player-container"></div>
 
 <script type="module">
     import { setResponsiveIframe } from 'js-streamlike-sdk';
 
-    const containerId = 'playerParams-container';
-    const mediaId = 'your-mediaParams-id';
+    const containerId = 'player-container';
+    const mediaId = 'your-media-id';
     const options = {
-        playerParams: {
-            events: 1, // Enables playerParams events
+        playerOptions: {
+            events: 1, // Enables player events
             autoplay: true,
             active_color: "293c5a"
         },
@@ -45,7 +48,7 @@ Use the `setResponsiveIframe` function to embed a video playerParams in an HTML 
             if (response.res) {
                 console.log('Player loaded successfully!', response.data);
             } else {
-                console.error('Error loading playerParams:', response.errors);
+                console.error('Error loading player:', response.errors);
             }
         });
 </script>
@@ -75,8 +78,14 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
                 const thumbnail = document.createElement('div');
                 thumbnail.className = 'thumbnail';
 
-                // Generate the interactive thumbnail
-                generateThumbnail(thumbnail, media.metadata.customization, { mode: 'animation' });
+                // Generate the interactive thumbnail with new fitMode options
+                generateThumbnail(thumbnail, media.metadata.customization, {
+                    mode: 'animation',
+                    fitMode: {
+                        cover: 'cover', // Options: 'cover' (fill) or 'contain' (with blur)
+                        animation: 'contain' // Options: 'cover' (fill) or 'contain' (with blur)
+                    }
+                });
                 
                 const title = document.createElement('div');
                 title.className = 'title';
@@ -93,22 +102,19 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
 </script>
 ```
 ### 3. Display a dynamic transcript
-After loading a playerParams, use `generateWords` to display an interactive transcript. The words are highlighted during playback and are clickable to navigate through the video.
+After loading a player, use `generateWords` to display an interactive transcript. The words are highlighted during playback and are clickable to navigate through the video.
 
 ```html
-
-<div id="playerParams-container"></div>
-<div id="words-container"></div>```
-<div id="playerParams-container"></div>
+<div id="player-container"></div>
 <div id="words-container"></div>
 
 <script type="module">
     import {setResponsiveIframe, generateWords} from 'js-streamlike-sdk';
 
-    const containerId = 'playerParams-container';
-    const mediaId = 'your-mediaParams-id';
+    const containerId = 'player-container';
+    const mediaId = 'your-media-id';
 
-    // 1. Load the playerParams
+    // 1. Load the player
     setResponsiveIframe(mediaId,containerId).then(response => {
         if (response.res && response.data) {
             const media= response.data;
@@ -117,7 +123,7 @@ After loading a playerParams, use `generateWords` to display an interactive tran
 
             if (wordsUrl && playerIframe) {
                 // 2. Generate the transcript
-                generateWords(wordsUrl, { 
+                generateWords(wordsUrl, {
                     wordsContainer: 'words-container',
                     iframePlayer: playerIframe,
                     debug: true
@@ -133,21 +139,20 @@ After loading a playerParams, use `generateWords` to display an interactive tran
 - `getWsMedia(param, options)`: Fetches media content from the specified web service (WS) endpoint using
 - `getMediaFromId(id, options)`: Retrieves media information based on the provided media ID..
 - `getMediaMetadata(params, options)`: Fetches and retrieves media metadata based on provided parameters and options.
-- `getWsPlaylist(param, options)`: Fetches the playlistParams for a given playlistParams ID.
+- `getWsPlaylist(param, options)`: Fetches the playlist for a given playlist ID.
 - `getMediasFromPlaylist(id, options)`: Retrieves a list of media items from a specified playlist.`
 - `getWsPlaylist(params, options)`: Fetches the playlist data using the provided parameters.
 - `getWsPlaylists(params, options)`: Fetches playlists for a specific company based on provided parameters.
 - `getPlaylists(params, options)`: Retrieves a list of playlists based on the given parameters..
-- `getWsRelated(params, options)`: Fetches related medias for a given mediaParams.
-- `setResponsiveIframe(id,target, options)`: Embeds a responsive iframeParams playerParams into a target element.
+- `getWsRelated(params, options)`: Fetches related medias for a given media.
+- `setResponsiveIframe(id,target, options)`: Embeds a responsive iframe player into a target element.
 - `generateThumbnail(target, mediaCustomization, options)`: Creates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates and manages an interactive transcript from a data URL.
 
 
- 
 ### Important Types
 The library exports several types and enums to facilitate its use with TypeScript.
-- `Media`: Options for iframeParams playerParams configuration.
+- `Media`: Options for iframe player configuration.
 - `Playlist`: Represents the main playlist object.
 - `PlaylistItem`: Represents a playlist item in a structured format..
 ...

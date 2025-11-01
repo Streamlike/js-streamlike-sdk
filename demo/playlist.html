@@ -40,6 +40,19 @@
             <option value="scrubbing" disabled>Scrubbing (soon)</option>
         </select>
     </div>
+    <div id="div-fit-mode">
+        <label for="fit-mode-cover">Fit mode cover : </label>
+        <select id="fit-mode-cover">
+            <option value="cover">Cover (fill)</option>
+            <option value="contain">Contain (with blur)</option>
+        </select>
+
+        <label for="fit-mode-animation" style="margin-left: 20px;">Fit mode animation (soon) : </label>
+        <select id="fit-mode-animation" disabled>
+            <option value="contain">Contain (with blur)</option>
+            <option value="cover">Cover (fill)</option>
+        </select>
+    </div>
     <div id="playlist-mosaic-container"></div>
 </div>
 
@@ -52,6 +65,10 @@
     const playlistForm = document.getElementById('playlist-form');
     const playlistInput = document.getElementById('playlist-id-input');
     const previewModeSelect = document.getElementById('preview-mode');
+    const fitModeCoverSelect = document.getElementById('fit-mode-cover');
+    const fitModeAnimationSelect = document.getElementById('fit-mode-animation');
+
+    const debug = false;
 
     /**
      * Loads a video into the playerParams with the given mediaParams ID and optional autoplay setting.
@@ -71,7 +88,7 @@
                 }
             },
             baseOptions: {
-                debug: true,
+                debug: debug,
             }
         };
         if (autostart) {
@@ -81,7 +98,7 @@
 
         Streamlike.setResponsiveIframe(mediaId, mainPlayerContainer, options).then(response => {
             if (response.res) {
-                mediaName.innerHTML = response.res.global.name;
+                mediaName.innerHTML = response.data.metadata.global.name;
             }
         });
     }
@@ -111,10 +128,10 @@
                 sortorder: 'down',
             }
             const options = {
-                debug: true,
+                debug: debug,
             }
             const playlistData = await Streamlike.getMediasFromPlaylist(playlistId, params, options);
-            console.log("Playlist data:", playlistData);
+            if(debug) console.debug("Playlist data:", playlistData);
             if (playlistData && playlistData.length > 0) {
                 mosaicContainer.innerHTML = '';
 
@@ -132,7 +149,9 @@
                     const thumbnail = document.createElement('div');
                     thumbnail.className = 'thumbnail';
                     const previewMode = previewModeSelect.value;
-                    let options = {debug: true, mode: previewMode};
+                    const fitModeCover = fitModeCoverSelect.value;
+                    const fitModeAnimation = fitModeAnimationSelect.value;
+                    let options = {debug: debug, mode: previewMode, fitMode: {cover: fitModeCover, animation: fitModeAnimation}};
                     Streamlike.generateThumbnail(thumbnail, metadataCustomization, options);
 
 
@@ -176,8 +195,18 @@
         loadPlaylist(playlistInput.value);
     });
 
-    // Reload playlist when preview mode changes
+    // Reload the playlist when preview mode changes
     previewModeSelect.addEventListener('change', () => {
+        loadPlaylist(playlistInput.value);
+    });
+
+    // Reload playlist when fit mode changes
+    fitModeCoverSelect.addEventListener('change', () => {
+        loadPlaylist(playlistInput.value);
+    });
+
+    // Reload playlist when fit mode changes
+    fitModeAnimationSelect.addEventListener('change', () => {
         loadPlaylist(playlistInput.value);
     });
 </script>

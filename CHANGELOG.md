@@ -1,4 +1,17 @@
 # Changelog
+## [3.0.0] - 2025-11-02
+### Major Changes (BREAKING CHANGES)
+- Modified `setResponsiveIframe` to use the `aspectRatio` CSS property for responsive sizing instead of the `paddingTop` hack. This may require adjustments to custom CSS that relied on the previous implementation.
+
+### Added
+- Introduced new 'Fit Mode' options (`cover`, `contain`) for `generateThumbnail` to control how interactive preview thumbnails are displayed. This includes a blurred background option for `contain` mode.
+- Enhanced `generateThumbnail` with a completely refactored rendering logic, utilizing `<img>` elements for improved control and adding touch event support for mobile devices.
+- Added `width` and `height` properties to the `MosaicFrame` interface, providing more precise data for thumbnail frames.
+- Added comprehensive JSDoc comments to the `PlayerParams` interface for improved documentation and clarity.
+
+### fix
+- Display media name in `demo/playlist.html`.
+
 ## [2.0.0] - 2025-10-31
 
 ### Major Changes (BREAKING CHANGES)

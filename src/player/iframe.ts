@@ -57,20 +57,16 @@ export async function setResponsiveIframe(
         if (allowPermissions.length > 0) iframePlayer.setAttribute("allow", allowPermissions.join('; '));
         if (onLoad) iframePlayer.addEventListener('load', onLoad);
 
-        iframePlayer.style.cssText = "position:absolute; top:0; left:0; width:100%; height:100%; border:0; overflow:hidden;";
-        iframePlayer.style.position = "absolute";
-        iframePlayer.style.top = '0';
-        iframePlayer.style.left = '0';
         iframePlayer.style.width = '100%';
         iframePlayer.style.height = '100%';
         iframePlayer.style.border = '0';
         iframePlayer.style.overflow = 'hidden';
 
         divParent.innerHTML = '';
-        divParent.style.position = "relative";
         divParent.style.overflow = "hidden";
-        divParent.style.paddingTop = `${(1 / currentRatio) * 100}%`;
+        divParent.style.aspectRatio = `${currentRatio}`;
         divParent.appendChild(iframePlayer);
+
         if (debug) {
             console.debug('%c✔ iframe created', 'color: green', iframePlayer);
 
