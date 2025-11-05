@@ -109,7 +109,13 @@ export interface Playlist {
  * Metadata for the playlist itself (e.g., total size).
  */
 export interface PlaylistMetadata {
+    [key: string]: string | number | boolean | null | undefined;
     size: number;
+    playlist_id?: string;
+    name?: string;
+    description?: string;
+    total_duration?: number;
+    view_position?: string;
 }
 
 /**
