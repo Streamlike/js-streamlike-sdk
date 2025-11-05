@@ -63,6 +63,27 @@ export enum SortOrder {
     Down = 'down'
 }
 
+export enum OrderByPlaylist{
+    ID="id",
+    NAME="name",
+    DURATION="duration",
+    VOTRE="vote",
+    HIT="hit",
+    LAST_PLAYBACK_DATE="lastplaybackdate",
+    CREATION_DATE="creationdate",
+    LAST_UPDATE_DATE="lastupdateddate",
+    LAST_UPDATED_FILE_DATE="lastupdatedfiledate",
+    RELEASE_DATE= "releasedate",
+    POSITION="position"
+}
+
+export enum OrderByPlaylists{
+    ID="id",
+    NAME="name",
+    CREATION_DATE="creationdate",
+    POSITION="position"
+}
+
 /**
  * Defines common sorting parameters for API requests.
  */
@@ -70,7 +91,7 @@ export interface SortingParams {
     /**
      * The field to order by (e.g., 'releasedate').
      */
-    orderby?: string;
+    orderby?: OrderByPlaylist|OrderByPlaylists|string;
     /**
      * The sort direction.
      */
