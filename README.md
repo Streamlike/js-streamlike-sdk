@@ -155,4 +155,7 @@ The library exports several types and enums to facilitate its use with TypeScrip
 - `Media`: Options for iframe player configuration.
 - `Playlist`: Represents the main playlist object.
 - `PlaylistItem`: Represents a playlist item in a structured format..
-...
+- `PlaylistMetadata`: Interface for playlist metadata, now including additional optional fields like `playlist_id`, `name`, `description`, `total_duration`, and `view_position`.
+- `SortingParams`: Defines common sorting parameters for API requests. The `orderby` field now accepts `OrderByPlaylist`, `OrderByPlaylists`, or a `string` to specify the sorting criteria.
+- `OrderByPlaylist`: Enum defining fields by which media within a playlist can be ordered (e.g., `ID`, `NAME`, `DURATION`).
+- `OrderByPlaylists`: Enum defining fields by which playlists can be ordered (e.g., `ID`, `NAME`, `CREATION_DATE`).

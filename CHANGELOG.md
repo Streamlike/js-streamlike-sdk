@@ -1,4 +1,12 @@
 # Changelog
+## [3.1.0] - 2025-11-05
+
+### New Features (Minor)
+- ### Added
+- Enhanced `PlaylistMetadata` interface with new optional fields: `playlist_id`, `name`, `description`, `total_duration`, and `view_position`.
+- Introduced `OrderByPlaylist` and `OrderByPlaylists` enums to provide specific and type-safe sorting options for media within playlists and for playlists themselves.
+- Updated `SortingParams` interface to allow `orderby` property to accept `OrderByPlaylist` or `OrderByPlaylists` enums, improving type safety for API sorting parameters.
+
 ## [3.0.0] - 2025-11-02
 ### Major Changes (BREAKING CHANGES)
 - Modified `setResponsiveIframe` to use the `aspectRatio` CSS property for responsive sizing instead of the `paddingTop` hack. This may require adjustments to custom CSS that relied on the previous implementation.
