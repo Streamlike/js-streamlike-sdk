@@ -78,19 +78,16 @@ export async function setResponsiveIframe(
     switch (typePlayerId) {
         case TypePlayerId.media:
             playerParams.med_id = id;
-            mediaParams.media_id = id;
             break;
         case TypePlayerId.permalink:
             playerParams.permalink = id;
-            mediaParams.permalink = id;
             break;
         case TypePlayerId.streamout:
             playerParams.str_id = id;
-            endpoint = '/str_id/play';
+            endpoint = '/streamout/play';
             break;
         case TypePlayerId.live:
             playerParams.live_id = id;
-            endpoint = '/str_id/play';
             break;
 
     }

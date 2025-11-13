@@ -1,4 +1,9 @@
 # Changelog
+## [3.1.1] - 2025-11-13
+
+### fix
+- Corrected internal endpoint handling for streamout and live player types in `setResponsiveIframe`.
+
 ## [3.1.0] - 2025-11-05
 
 ### New Features (Minor)
