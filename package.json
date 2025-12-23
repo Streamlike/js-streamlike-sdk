@@ -1,6 +1,6 @@
 {
   "name": "js-streamlike-sdk",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Streamlike JavaScript SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
