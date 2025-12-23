@@ -67,7 +67,7 @@ export enum OrderByPlaylist{
     ID="id",
     NAME="name",
     DURATION="duration",
-    VOTRE="vote",
+    VOTE="vote",
     HIT="hit",
     LAST_PLAYBACK_DATE="lastplaybackdate",
     CREATION_DATE="creationdate",
