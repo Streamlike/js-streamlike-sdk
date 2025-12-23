@@ -1,4 +1,9 @@
 # Changelog
+## [3.1.2] - 2025-12-23
+
+### 
+- Corrected typo in `OrderByPlaylist` enum from `VOTRE` to `VOTE`.
+
 ## [3.1.1] - 2025-11-13
 
 ### fix
