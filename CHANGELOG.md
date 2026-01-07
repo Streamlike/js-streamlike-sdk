@@ -1,4 +1,12 @@
 # Changelog
+## [3.2.0] - 2026-01-07
+
+### New Features (Minor)
+- ### Added
+- Enabled 'Scrubbing' and 'Animation' preview modes in `demo/playlist.html`.
+- Enabled 'Fit mode animation' in `demo/playlist.html`.
+- Introduced `autoScroll` option in `TranscriptOptions` to control automatic scrolling of transcripts during playback.
+
 ## [3.1.2] - 2025-12-23
 
 ### 

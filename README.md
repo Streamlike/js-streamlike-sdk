@@ -126,7 +126,8 @@ After loading a player, use `generateWords` to display an interactive transcript
                 generateWords(wordsUrl, {
                     wordsContainer: 'words-container',
                     iframePlayer: playerIframe,
-                    debug: true
+                    debug: true,
+                    autoScroll: true // New option to control auto-scrolling
                 });
             }
         }
@@ -147,7 +148,7 @@ After loading a player, use `generateWords` to display an interactive transcript
 - `getWsRelated(params, options)`: Fetches related medias for a given media.
 - `setResponsiveIframe(id,target, options)`: Embeds a responsive iframe player into a target element.
 - `generateThumbnail(target, mediaCustomization, options)`: Creates an interactive preview thumbnail.
-- `generateWords(url, options)`: Generates and manages an interactive transcript from a data URL.
+- `generateWords(url, options)`: Generates and manages an interactive transcript from a data URL, with an option to control auto-scrolling.
 
 
 ### Important Types
