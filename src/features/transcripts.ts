@@ -10,6 +10,7 @@ import {CallbackResponse} from "../types/api";
  * @internal
  */
 function _updateWordsHighlight(wordsContainer: HTMLElement, currentTime: number): void {
+    const isVisible = !!(wordsContainer.offsetWidth || wordsContainer.offsetHeight || wordsContainer.getClientRects().length );
     const words = wordsContainer.querySelectorAll('span[data-start]');
     words.forEach(word => {
         const span = word as HTMLSpanElement;
@@ -18,10 +19,12 @@ function _updateWordsHighlight(wordsContainer: HTMLElement, currentTime: number)
         if (currentTime >= start && currentTime < end) {
             span.classList.add('active');
             // Auto-scroll to keep the active word visible
-            const containerRect = wordsContainer.getBoundingClientRect();
-            const rect = span.getBoundingClientRect();
-            if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
-                span.scrollIntoView({behavior: 'smooth', block: 'center'});
+            if (isVisible && wordsContainer.classList.contains('scroll-auto')) {
+                const containerRect = wordsContainer.getBoundingClientRect();
+                const rect = span.getBoundingClientRect();
+                if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+                    span.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
             }
         } else {
             span.classList.remove('active');
@@ -77,7 +80,15 @@ export async function generateWords(url: string, options: TranscriptOptions): Pr
         error: options.messages?.error || defaultMessages.error
     };
 
+    const autoScroll = options.autoScroll ?? true;
+
     wordsContainer.innerHTML = `<span>${messages.loading}</span>`;
+
+    if (autoScroll){
+        wordsContainer.classList.add('scroll-auto');
+    }else{
+        wordsContainer.classList.remove('scroll-auto');
+    }
 
     try {
         const response = await fetch(fixHost(url));

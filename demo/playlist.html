@@ -24,7 +24,7 @@
 
     <form id="playlist-form">
         <label for="playlist-id-input">Playlist ID:</label>
-        <input type="text" id="playlist-id-input" value="5d926de37e6e531d" required>
+        <input type="text" id="playlist-id-input" value="c4da86fddd8f0ada" required>
         <button type="submit">Load Playlist</button>
 
     </form>
@@ -35,9 +35,9 @@
     <div id="div-preview-mode">
         <label for="preview-mode">Preview mode : </label>
         <select id="preview-mode">
+            <option value="scrubbing">Scrubbing</option>
+            <option value="animation">Animation</option>
             <option value="fixed">Fixed</option>
-            <option value="animation" disabled>Animation (soon)</option>
-            <option value="scrubbing" disabled>Scrubbing (soon)</option>
         </select>
     </div>
     <div id="div-fit-mode">
@@ -47,8 +47,8 @@
             <option value="contain">Contain (with blur)</option>
         </select>
 
-        <label for="fit-mode-animation" style="margin-left: 20px;">Fit mode animation (soon) : </label>
-        <select id="fit-mode-animation" disabled>
+        <label for="fit-mode-animation" style="margin-left: 20px;">Fit mode animation : </label>
+        <select id="fit-mode-animation">
             <option value="contain">Contain (with blur)</option>
             <option value="cover">Cover (fill)</option>
         </select>
