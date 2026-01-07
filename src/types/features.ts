@@ -30,6 +30,7 @@ export interface TranscriptOptions {
     wordsContainer: string | HTMLElement;
     iframePlayer: string | HTMLIFrameElement;
     debug?: boolean;
+    autoScroll?: boolean;
     messages:{
         loading: string;
         error: string;
