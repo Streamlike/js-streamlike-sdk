@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Trimmer Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK - Trimmer Demo</h1>
+    <p>
+        This page is a demonstration of how to use the <code>generateTrimmer</code> method from the <code>js-streamlike-sdk</code>
+        library.<br>
+        Move the left and right cursors to adjust the start and end values.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <hr>
+    <form id="media-form">
+        <label for="media-id-input">Media ID:</label>
+        <input type="text" id="media-id-input" placeholder="your-media-id-here" required value="07bc58fe3d852b82">
+        <button type="submit">Load Trimmer</button>
+    </form>
+    <hr>
+    <div style="margin-bottom: 20px; display: flex; gap: 15px;">
+        <label>
+            <strong>Start Time (s):</strong>
+            <input type="number" id="start-time" step="any" style="width: 100px; padding: 5px;">
+        </label>
+        <label>
+            <strong>End Time (s):</strong>
+            <input type="number" id="end-time" step="any" style="width: 100px; padding: 5px;">
+        </label>
+
+    </div>
+
+    <!-- The div that will contain the trimmer -->
+    <div id="trimmer-container" style="width: 100%; max-width: 800px; margin: 0 auto; border-radius: 8px;"></div>
+    <div style="margin-top: 20px; display: flex; gap: 15px;">
+
+        <label>
+            <strong>Current Time (s):</strong>
+            <input type="number" id="current-time" step="any" readonly style="width: 100px; padding: 5px;">
+        </label>
+<!--        <div style="margin-left: auto; display: flex; gap: 10px;" >-->
+<!--            <button id="play-btn"-->
+<!--                    style="padding: 10px 20px; cursor: pointer; background: #293c5a; color: white; border: none; border-radius: 4px;">-->
+<!--                Play-->
+<!--            </button>-->
+<!--            <button id="stop-btn"-->
+<!--                    style="padding: 10px 20px; cursor: pointer; background: #293c5a; color: white; border: none; border-radius: 4px;">-->
+<!--                Pause-->
+<!--            </button>-->
+<!--        </div>-->
+    </div>
+</div>
+
+<script type="module">
+    import * as Streamlike from '../dist/index.mjs';
+
+    const containerId = 'trimmer-container';
+    const form = document.getElementById('media-form');
+    const input = document.getElementById('media-id-input');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await loadTrimmer(input.value);
+    });
+
+    async function loadTrimmer(mediaId) {
+        if (!mediaId) {
+            console.error('Media ID is required.');
+            return;
+        }
+
+        console.log(`%cFetching media "${mediaId}"...`, 'color: cyan');
+
+        try {
+            const mediaContainer = await Streamlike.getMediaFromId(mediaId, {}, {debug: true});
+            if (!mediaContainer) {
+                console.error("No media found for ID", mediaId);
+                return;
+            }
+
+            const media = mediaContainer.media;
+            const duration = media.metadata?.global?.duration || 120;
+            const mediaUrl = media.metadata?.customization?.cover?.thumbnailextralarge_url || 'https://picsum.photos/800/450';
+            const ratio = media.metadata?.global?.ratio || (16 / 9);
+
+            const response = await Streamlike.generateTrimmer(containerId, {
+                duration: duration,
+                mediaId: mediaId,
+                mediaCustomization: media.metadata?.customization,
+                mediaUrl: mediaUrl,
+                aspectRatio: ratio,
+                startInput: 'start-time',
+                endInput: 'end-time',
+                currentTimeInput: 'current-time',
+                playButton: 'play-btn',
+                stopButton: 'stop-btn',
+                initialStart: duration > 10 ? 10 : 0,
+                initialEnd: duration > 10 ? 10 : duration,
+                debug: true
+            });
+
+            if (response.res) {
+                console.log('%c✔ Trimmer loaded successfully!', 'color: green');
+                console.log('Initial Values:', response.data);
+            } else {
+                console.error('Error loading trimmer:', response.errors);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Optionally add event listeners on inputs to see updates in console
+        document.getElementById('start-time').addEventListener('input', (e) => {
+            console.log('Start updated:', e.target.value);
+        });
+        document.getElementById('end-time').addEventListener('input', (e) => {
+            console.log('End updated:', e.target.value);
+        });
+
+        // Initialize with default value
+        loadTrimmer(input.value);
+    });
+</script>
+
+</body>
+</html>

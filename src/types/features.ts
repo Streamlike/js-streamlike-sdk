@@ -84,3 +84,21 @@ export interface MediaCustomization {
     mosaic: string;
     board?: BoardUrls;
 }
+
+// --- Trimmer ---
+
+export interface TrimmerOptions {
+    duration: number;
+    startInput: string | HTMLInputElement;
+    endInput: string | HTMLInputElement;
+    currentTimeInput: string | HTMLInputElement;
+    mediaUrl?: string;
+    mediaId?: string;
+    mediaCustomization?: MediaCustomization;
+    aspectRatio?: number;
+    initialStart?: number;
+    initialEnd?: number;
+    playButton?: string | HTMLElement;
+    stopButton?: string | HTMLElement;
+    debug?: boolean;
+}

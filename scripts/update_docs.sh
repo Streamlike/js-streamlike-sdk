@@ -74,7 +74,7 @@ EOF
 
 TEMP_OUTPUT_FILE=$(mktemp)
 gemini --yolo "$(cat "$TEMP_PROMPT_FILE")" \
-    --model gemini-2.5-flash \
+    --model gemini-3-flash-preview \
     --output-format json 2>&1 | tee "$TEMP_OUTPUT_FILE"
 GEMINI_EXIT_CODE=$?
 rm "$TEMP_PROMPT_FILE"

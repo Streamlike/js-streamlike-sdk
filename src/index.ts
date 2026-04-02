@@ -1,3 +1,7 @@
+// --- SDK Version ---
+export const SDK_VERSION = "3.3.0";
+// console.log(`%cStreamlike SDK v${SDK_VERSION} loaded`, "color: #00ff00; font-weight: bold;");
+
 // --- API Methods ---
 export {getWs} from './utils/api';
 export {getWsMedia, getMediaFromId, getMediaFromPermalink, getMediaStatistics, getMediaMetadata} from './api/media';
@@ -9,6 +13,7 @@ export {getWsRelated} from './api/related';
 // --- Features ---
 export {generateThumbnail} from './features/preview';
 export {generateWords} from './features/transcripts';
+export {generateTrimmer} from './features/trimmer';
 
 // --- Player ---
 export {setResponsiveIframe} from './player/iframe';
