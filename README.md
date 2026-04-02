@@ -6,6 +6,7 @@ The Streamlike JS SDK is a TypeScript library designed to interact with the Stre
 - Fetching mediaParams and playlist data via the Streamlike API.
 - Generation of interactive thumbnails with different modes (animation, scrubbing).
 - Display of dynamic transcripts synchronized with video playback.
+- Interactive trimmer for video segments.
 - Fully typed with TypeScript for a better development experience.
 
 ## Live Demo
@@ -129,11 +130,55 @@ After loading a player, use `generateWords` to display an interactive transcript
                     debug: true,
                     autoScroll: true // New option to control auto-scrolling
                 });
-            }
+            } 
         }
     });
 </script>
 ```
+### 4. Generate an interactive trimmer
+Use the `generateTrimmer` function to create an interactive video segment trimmer. This allows users to select start and end points of a video.
+
+```html
+<!-- Your HTML container for the trimmer -->
+<div id="trimmer-container" style="width: 100%; max-width: 800px; margin: 0 auto;"></div>
+
+<!-- Input fields to bind to the trimmer -->
+<input type="number" id="start-time" step="any">
+<input type="number" id="end-time" step="any">
+<input type="number" id="current-time" step="any" readonly>
+
+<script type="module">
+    import * as Streamlike from 'js-streamlike-sdk';
+
+    const mediaId = 'your-media-id'; // Replace with an actual media ID
+    const duration = 120; // Replace with actual media duration
+
+    async function loadTrimmer() {
+        const mediaContainer = await Streamlike.getMediaFromId(mediaId, {}, {debug: true});
+        if (!mediaContainer || !mediaContainer.media) {
+            console.error("No media found for ID", mediaId);
+            return;
+        }
+        const media = mediaContainer.media;
+
+        Streamlike.generateTrimmer('trimmer-container', {
+            duration: media.metadata?.global?.duration || duration,
+            mediaId: mediaId,
+            mediaCustomization: media.metadata?.customization,
+            aspectRatio: media.metadata?.global?.ratio || (16 / 9),
+            startInput: 'start-time',
+            endInput: 'end-time',
+            currentTimeInput: 'current-time',
+            initialStart: 10,
+            initialEnd: 30,
+            debug: true
+        });
+    }
+
+    loadTrimmer();
+</script>
+```
+
 ## API Reference
 ### Main Functions
 - `getWs(url, debug = false)` : Fetches the Streamlike API data from a given URL.
@@ -149,6 +194,7 @@ After loading a player, use `generateWords` to display an interactive transcript
 - `setResponsiveIframe(id,target, options)`: Embeds a responsive iframe player into a target element.
 - `generateThumbnail(target, mediaCustomization, options)`: Creates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates and manages an interactive transcript from a data URL, with an option to control auto-scrolling.
+- `generateTrimmer(target, options)`: Generates an interactive trimmer inside a target element for selecting video segments.
 
 
 ### Important Types
@@ -160,3 +206,4 @@ The library exports several types and enums to facilitate its use with TypeScrip
 - `SortingParams`: Defines common sorting parameters for API requests. The `orderby` field now accepts `OrderByPlaylist`, `OrderByPlaylists`, or a `string` to specify the sorting criteria.
 - `OrderByPlaylist`: Enum defining fields by which media within a playlist can be ordered (e.g., `ID`, `NAME`, `DURATION`).
 - `OrderByPlaylists`: Enum defining fields by which playlists can be ordered (e.g., `ID`, `NAME`, `CREATION_DATE`).
+- `TrimmerOptions`: Interface for configuring the interactive video trimmer.

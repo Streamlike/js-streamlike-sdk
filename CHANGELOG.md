@@ -1,4 +1,12 @@
 # Changelog
+
+## [3.3.0] - 2026-04-02
+
+### New Features (Minor)
+- ### Added
+- Introduced `generateTrimmer` function for creating interactive video segment trimmers.
+- Added `TrimmerOptions` interface for configuring the trimmer.
+
 ## [3.2.0] - 2026-01-07
 
 ### New Features (Minor)
