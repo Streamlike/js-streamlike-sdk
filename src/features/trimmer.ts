@@ -80,6 +80,7 @@ export async function generateTrimmer(
         debug = false,
         mediaCustomization,
         mediaId,
+        baseOptions
     } = options;
 
     const startInput = typeof options.startInput === 'string'
@@ -155,7 +156,8 @@ export async function generateTrimmer(
                 tc: Math.round(startTime),
                 autostart: false,
                 play_button: false
-            }
+            },
+            baseOptions: baseOptions
         });
         if (playerRes.res) {
             playerIframe = bgContainer.querySelector('iframe');

@@ -171,7 +171,10 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
             currentTimeInput: 'current-time',
             initialStart: 10,
             initialEnd: 30,
-            debug: true
+            debug: true,
+            baseOptions: {
+                debug: true
+            }
         });
     }
 
@@ -206,4 +209,4 @@ The library exports several types and enums to facilitate its use with TypeScrip
 - `SortingParams`: Defines common sorting parameters for API requests. The `orderby` field now accepts `OrderByPlaylist`, `OrderByPlaylists`, or a `string` to specify the sorting criteria.
 - `OrderByPlaylist`: Enum defining fields by which media within a playlist can be ordered (e.g., `ID`, `NAME`, `DURATION`).
 - `OrderByPlaylists`: Enum defining fields by which playlists can be ordered (e.g., `ID`, `NAME`, `CREATION_DATE`).
-- `TrimmerOptions`: Interface for configuring the interactive video trimmer.
+- `TrimmerOptions`: Interface for configuring the interactive video trimmer, now including `baseOptions` for global configuration.
