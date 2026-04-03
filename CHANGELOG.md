@@ -1,4 +1,9 @@
 # Changelog
+## [3.4.0] - 2026-04-03
+
+### New Features (Minor)
+- Added `baseOptions` to `TrimmerOptions` to allow passing global configuration (such as `host` or `debug`) to the trimmer's internal player.
+
 
 ## [3.3.0] - 2026-04-02
 

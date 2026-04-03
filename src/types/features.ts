@@ -1,7 +1,7 @@
 // path: src/types/features.ts
 
 // --- Transcript/Words ---
-import {debugOptions} from "./api";
+import {BaseOptions, debugOptions} from "./api";
 
 export enum MosaicSize {
     Small = 'small',
@@ -101,4 +101,5 @@ export interface TrimmerOptions {
     playButton?: string | HTMLElement;
     stopButton?: string | HTMLElement;
     debug?: boolean;
+    baseOptions?: BaseOptions;
 }
