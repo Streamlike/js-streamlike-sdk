@@ -1,4 +1,9 @@
 # Changelog
+## [3.4.1] - 2026-07-30
+
+### Fix
+- Updated `README.md` documentation, correcting cut-off descriptions, duplicate entries, missing API functions, typos, code example flaws, and inaccurate type descriptions.
+
 ## [3.4.0] - 2026-04-03
 
 ### New Features (Minor)
