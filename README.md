@@ -10,15 +10,18 @@ The Streamlike JS SDK is a TypeScript library designed to interact with the Stre
 - Fully typed with TypeScript for a better development experience.
 
 ## Live Demo
-  You can see a live demonstration of the library's features, including playerParams and playlist examples, by opening the files in the `demo` folder.
+You can see a live demonstration of the library's features, including playerParams and playlist examples, by opening the files in the `demo` folder.
 
 ## Installation
 To install the library, use npm:
 
-`npm install js-streamlike-sdk`
+```bash
+npm install js-streamlike-sdk
+```
 
 ## Usage
 Here's how to use the main features of the library.
+
 ### 1. Embed a video player
 Use the `setResponsiveIframe` function to embed a video player in an HTML container.
 
@@ -34,17 +37,17 @@ Use the `setResponsiveIframe` function to embed a video player in an HTML contai
     const containerId = 'player-container';
     const mediaId = 'your-media-id';
     const options = {
-        playerOptions: {
+        playerParams: {
             events: 1, // Enables player events
             autoplay: true,
             active_color: "293c5a"
         },
         baseOptions: {
-            debug: 1
+            debug: true
         }
     };
 
-    setResponsiveIframe(mediaId,containerId, options)
+    setResponsiveIframe(mediaId, containerId, options)
         .then(response => {
             if (response.res) {
                 console.log('Player loaded successfully!', response.data);
@@ -54,8 +57,10 @@ Use the `setResponsiveIframe` function to embed a video player in an HTML contai
         });
 </script>
 ```
+
 ### 2. Display a playlist
 Fetch the media from a playlist with `getMediasFromPlaylist` and display them. This example creates a mosaic of thumbnails.
+
 ```html
 <div id="playlist-mosaic-container"></div>
 
@@ -68,7 +73,7 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
     async function loadPlaylist(id) {
         const playlistData = await getMediasFromPlaylist(id);
 
-        if (playlistData && playlistData.length>1) {
+        if (playlistData && playlistData.length > 0) {
             mosaicContainer.innerHTML = ''; // Clear the container
 
             playlistData.forEach(mediaItem => {
@@ -79,7 +84,7 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
                 const thumbnail = document.createElement('div');
                 thumbnail.className = 'thumbnail';
 
-                // Generate the interactive thumbnail with new fitMode options
+                // Generate the interactive thumbnail with fitMode options
                 generateThumbnail(thumbnail, media.metadata.customization, {
                     mode: 'animation',
                     fitMode: {
@@ -102,6 +107,7 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
     loadPlaylist(playlistId);
 </script>
 ```
+
 ### 3. Display a dynamic transcript
 After loading a player, use `generateWords` to display an interactive transcript. The words are highlighted during playback and are clickable to navigate through the video.
 
@@ -110,16 +116,16 @@ After loading a player, use `generateWords` to display an interactive transcript
 <div id="words-container"></div>
 
 <script type="module">
-    import {setResponsiveIframe, generateWords} from 'js-streamlike-sdk';
+    import { setResponsiveIframe, generateWords } from 'js-streamlike-sdk';
 
     const containerId = 'player-container';
     const mediaId = 'your-media-id';
 
     // 1. Load the player
-    setResponsiveIframe(mediaId,containerId).then(response => {
+    setResponsiveIframe(mediaId, containerId).then(response => {
         if (response.res && response.data) {
-            const media= response.data;
-            const wordsUrl = media.metadata.subtitles[0].subtitle.url.words;
+            const media = response.data;
+            const wordsUrl = media.metadata.subtitles?.[0]?.subtitle?.url?.words;
             const playerIframe = document.getElementById(containerId).querySelector('iframe');
 
             if (wordsUrl && playerIframe) {
@@ -128,13 +134,14 @@ After loading a player, use `generateWords` to display an interactive transcript
                     wordsContainer: 'words-container',
                     iframePlayer: playerIframe,
                     debug: true,
-                    autoScroll: true // New option to control auto-scrolling
+                    autoScroll: true // Option to control auto-scrolling
                 });
             } 
         }
     });
 </script>
 ```
+
 ### 4. Generate an interactive trimmer
 Use the `generateTrimmer` function to create an interactive video segment trimmer. This allows users to select start and end points of a video.
 
@@ -154,7 +161,7 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
     const duration = 120; // Replace with actual media duration
 
     async function loadTrimmer() {
-        const mediaContainer = await Streamlike.getMediaFromId(mediaId, {}, {debug: true});
+        const mediaContainer = await Streamlike.getMediaFromId(mediaId, {}, { debug: true });
         if (!mediaContainer || !mediaContainer.media) {
             console.error("No media found for ID", mediaId);
             return;
@@ -183,30 +190,56 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
 ```
 
 ## API Reference
-### Main Functions
-- `getWs(url, debug = false)` : Fetches the Streamlike API data from a given URL.
-- `getWsMedia(param, options)`: Fetches media content from the specified web service (WS) endpoint using
-- `getMediaFromId(id, options)`: Retrieves media information based on the provided media ID..
-- `getMediaMetadata(params, options)`: Fetches and retrieves media metadata based on provided parameters and options.
-- `getWsPlaylist(param, options)`: Fetches the playlist for a given playlist ID.
-- `getMediasFromPlaylist(id, options)`: Retrieves a list of media items from a specified playlist.`
-- `getWsPlaylist(params, options)`: Fetches the playlist data using the provided parameters.
-- `getWsPlaylists(params, options)`: Fetches playlists for a specific company based on provided parameters.
-- `getPlaylists(params, options)`: Retrieves a list of playlists based on the given parameters..
-- `getWsRelated(params, options)`: Fetches related medias for a given media.
-- `setResponsiveIframe(id,target, options)`: Embeds a responsive iframe player into a target element.
-- `generateThumbnail(target, mediaCustomization, options)`: Creates an interactive preview thumbnail.
-- `generateWords(url, options)`: Generates and manages an interactive transcript from a data URL, with an option to control auto-scrolling.
-- `generateTrimmer(target, options)`: Generates an interactive trimmer inside a target element for selecting video segments.
 
+### Core Utility
+- `getWs(url, debug = false)`: Fetches Streamlike API data from a full endpoint URL.
+
+### Media API
+- `getWsMedia(params, options)`: Fetches media content from `/ws/media` using `media_id` or `permalink`.
+- `getMediaFromId(id, params, options)`: Retrieves media container by media ID.
+- `getMediaFromPermalink(permalink, params, options)`: Retrieves media container by permalink.
+- `getMediaMetadata(params, options)`: Fetches metadata for specified media parameters.
+- `getMediaStatistics(params, options)`: Fetches playback and rating statistics for specified media.
+
+### Playlist API
+- `getWsPlaylist(params, options)`: Fetches raw playlist data from `/ws/playlist`.
+- `getPlaylistSize(params, options)`: Retrieves the total item count of a playlist.
+- `getMediasFromPlaylist(id, params, options)`: Retrieves media items from a specified playlist ID.
+- `getMediasFromCompany(id, params, options)`: Retrieves media items belonging to a company ID.
+- `getMediasFromView(id, params, options)`: Retrieves media items belonging to a view ID.
+
+### Playlists API
+- `getWsPlaylists(params, options)`: Fetches playlist data for a company from `/ws/playlists`.
+- `getPlaylists(params, options)`: Retrieves list of playlists based on query parameters.
+
+### Related & Misc API
+- `getWsRelated(params, options)`: Fetches related media items for a given media.
+- `getWsCountries(options)`: Fetches list of available countries.
+- `getWsLanguages(options)`: Fetches list of available languages.
+- `getWsNowPlaying(options)`: Fetches now-playing items.
+- `getWsResume(params, options)`: Fetches video resume timecode.
+
+### Player & Features
+- `setResponsiveIframe(id, target, options)`: Embeds a responsive player iframe into a target container.
+- `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
+- `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
+- `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
 
 ### Important Types
-The library exports several types and enums to facilitate its use with TypeScript.
-- `Media`: Options for iframe player configuration.
-- `Playlist`: Represents the main playlist object.
-- `PlaylistItem`: Represents a playlist item in a structured format..
-- `PlaylistMetadata`: Interface for playlist metadata, now including additional optional fields like `playlist_id`, `name`, `description`, `total_duration`, and `view_position`.
-- `SortingParams`: Defines common sorting parameters for API requests. The `orderby` field now accepts `OrderByPlaylist`, `OrderByPlaylists`, or a `string` to specify the sorting criteria.
-- `OrderByPlaylist`: Enum defining fields by which media within a playlist can be ordered (e.g., `ID`, `NAME`, `DURATION`).
-- `OrderByPlaylists`: Enum defining fields by which playlists can be ordered (e.g., `ID`, `NAME`, `CREATION_DATE`).
-- `TrimmerOptions`: Interface for configuring the interactive video trimmer, now including `baseOptions` for global configuration.
+- `Media`: Represents a media entity containing metadata, statistics, and HTML5 sources.
+- `MediaContainer`: Wrapper object containing a `media` property.
+- `MediaMetadata`: Detailed metadata object for media items.
+- `Playlist`: Main playlist object holding metadata and media items.
+- `PlaylistItem`: Structured item in a playlists response.
+- `PlaylistMetadata`: Interface for playlist metadata (ID, name, description, size, total duration, view position).
+- `IframeOptions`: Options interface for embedding player iframe.
+- `ThumbnailOptions`: Configuration options for interactive thumbnails (mode, fitMode).
+- `TranscriptOptions`: Configuration interface for interactive transcripts (wordsContainer, iframePlayer, autoScroll).
+- `TrimmerOptions`: Configuration interface for the video segment trimmer.
+- `SortingParams`: Common sorting parameters for API requests.
+- `OrderByPlaylist`: Enum defining sorting fields for media within a playlist.
+- `OrderByPlaylists`: Enum defining sorting fields for playlists.
+- `TypePlayerId`: Enum defining player identifier type (`media`, `permalink`, `streamout`, `live`).
+- `CallbackResponse<T>`: Standard callback response structure (`res`, `data`, `errors`).
+- `MediaCallbackResponse`: Callback response structure returned by `setResponsiveIframe`.
+
