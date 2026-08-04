@@ -262,7 +262,10 @@ media when the current one ends.
             thumbnail: true,
             index: true,
             title: true,
-            duration: true,
+            duration: true,       // default true
+            releaseDate: false,   // date part of release_date
+            releaseTime: false,   // time of day (hh:mm) of release_date
+            views: false,
             description: false,
             // Optional: replace the static cover by an interactive preview
             // interactiveThumbnail: { mode: 'animation' }
@@ -284,6 +287,12 @@ media when the current one ends.
     controller.playMedia('media-id', 65);
 </script>
 ```
+
+In each entry of the list, `duration`, `releaseDate`, `releaseTime` and `views` are gathered — in that
+order — in a `sl-playlist-item-meta` row shown under the title, each with its own class
+(`-item-duration`, `-item-date`, `-item-time`, `-item-views`) so they can be styled or reordered one by
+one. Dates and counts follow the `locale` option, and the row is left out entirely when none of the four
+is enabled.
 
 #### Long playlists
 The medias are loaded page by page — `pageSize` per request, 10 by default, which is also the `/ws/playlist`
@@ -379,7 +388,7 @@ UI can be restyled from your own CSS:
 | `sl-playlist-info-title` / `-playlist` / `-meta` / `-position` / `-duration` / `-currenttime` / `-date` / `-time` / `-views` / `-description` / `-keywords` / `-keyword` | Information items |
 | `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` / `-list-more` | Playlist list and its "load more" button |
 | `sl-playlist-notice` / `-notice-message` / `-notice-next` / `sl-playlist-player-cover` | Restricted access block and stand-in cover |
-| `sl-playlist-item` (+ `is-active`, `is-locked`, `is-secured`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-duration` / `-item-description` | List entries |
+| `sl-playlist-item` (+ `is-active`, `is-locked`, `is-secured`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-meta` / `-item-duration` / `-item-date` / `-item-time` / `-item-views` / `-item-description` | List entries |
 
 A default stylesheet is injected once per prefix, using single-class selectors so your own rules override it
 easily. Set `injectStyles: false` to start from a blank slate. Descriptions coming from the API are rendered

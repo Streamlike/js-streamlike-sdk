@@ -53,6 +53,9 @@ const DEFAULT_LIST_ITEM: PlaylistPlayerListItemOptions = {
     index: true,
     title: true,
     duration: true,
+    releaseDate: false,
+    releaseTime: false,
+    views: false,
     description: false
 };
 
@@ -181,7 +184,7 @@ function _injectStyles(p: string): void {
 .${p}-item-thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .${p}-item-body { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
 .${p}-item-title { font-size: .9rem; }
-.${p}-item-duration { font-size: .75rem; opacity: .65; }
+.${p}-item-meta { display: flex; flex-wrap: wrap; gap: .5rem; font-size: .75rem; opacity: .65; }
 .${p}-item-description { font-size: .75rem; opacity: .7; }
 .${p}-list-more { width: 100%; margin-top: .25rem; }
 .${p}-player-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -536,9 +539,23 @@ export async function generatePlaylistPlayer(
 
         const body = _el('div', `${p}-item-body`);
         if (listItem.title) body.appendChild(_el('span', `${p}-item-title`, global.name ?? ''));
+
+        const meta = _el('div', `${p}-item-meta`);
         if (listItem.duration) {
-            body.appendChild(_el('span', `${p}-item-duration`, _formatTime(global.duration)));
+            meta.appendChild(_el('span', `${p}-item-duration`, _formatTime(global.duration)));
         }
+        if (listItem.releaseDate) {
+            meta.appendChild(_el('span', `${p}-item-date`, _formatDate(global.release_date, locale)));
+        }
+        if (listItem.releaseTime) {
+            meta.appendChild(_el('span', `${p}-item-time`, _formatClockTime(global.release_date, locale)));
+        }
+        if (listItem.views) {
+            const views = (media.statistics?.media_access ?? 0).toLocaleString(locale);
+            meta.appendChild(_el('span', `${p}-item-views`, `${views} ${labels.views}`));
+        }
+        if (meta.childElementCount) body.appendChild(meta);
+
         if (listItem.description && global.description) {
             body.appendChild(_el('span', `${p}-item-description`, _toPlainText(global.description)));
         }

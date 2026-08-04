@@ -7,6 +7,8 @@
 - A media secured by IP or referrer (`is_secured` without `is_tokenized`) stays playable. The player URL is probed with a HEAD request — `/play` answers a 404 when the access does not pass, and allows cross-origin reads — so the message and the button appear only when playback really fails. A tokenized media whose URL carries a valid token (`playerParams.sltoken`) is played rather than blocked.
 - Added `labels.secured` (default `Secured media`) and the `{prefix}-notice`, `{prefix}-notice-message`, `{prefix}-notice-next`, `{prefix}-player-cover` classes, plus `is-locked` / `is-secured` on the concerned list entries.
 - The offset used for paging is tracked separately from the kept medias, so hiding an entry no longer shifts the next page, and a page made only of hidden medias no longer ends the pagination.
+- `PlaylistPlayerOptions.listItem` gained `releaseDate`, `releaseTime` and `views` (all false by default), so the list entries can show the same information as the info panel next to the title. Dates and counts use the `locale` option.
+- Those three, plus the existing `duration`, are now rendered in a `{prefix}-item-meta` row under the title, each keeping its own class (`{prefix}-item-duration`, `-item-date`, `-item-time`, `-item-views`). Rules targeting `{prefix}-item-duration` still apply; only the element that wraps it changed.
 
 ## [3.5.0] - 2026-08-04
 
