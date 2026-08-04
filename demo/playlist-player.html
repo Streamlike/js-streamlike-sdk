@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike SDK - Playlist Player Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* The playlist player ships a default stylesheet, every element carries a
+           `sl-playlist-*` class so it can be restyled from the host page. */
+        .sl-playlist-info-title {
+            color: #293c5a;
+        }
+
+        .sl-playlist-item.is-active > .sl-playlist-item-button {
+            background: rgba(41, 60, 90, .18);
+            box-shadow: inset 3px 0 0 #293c5a;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container container-wide">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK - Playlist Player Demo</h1>
+    <p>
+        This demo uses the <code>generatePlaylistPlayer</code> method to play every media of an ordered
+        playlist, with previous / next controls and a clickable list. Use <em>Copy share link</em> to get a
+        URL that reopens the page on the current media, at the current position.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <form id="playlist-form">
+        <label for="playlist-id-input">Playlist ID:</label>
+        <input type="text" id="playlist-id-input" value="c4da86fddd8f0ada" required>
+        <button type="submit">Load Playlist</button>
+        <button type="button" id="share-button">Copy share link</button>
+    </form>
+
+    <fieldset id="info-options">
+        <legend>Information displayed during playback</legend>
+        <label><input type="checkbox" name="title" checked> Title</label>
+        <label><input type="checkbox" name="position" checked> Position</label>
+        <label><input type="checkbox" name="duration" checked> Duration</label>
+        <label><input type="checkbox" name="currentTime" checked> Current time</label>
+        <label><input type="checkbox" name="playlistName"> Playlist name</label>
+        <label><input type="checkbox" name="description" checked> Description</label>
+        <label><input type="checkbox" name="releaseDate"> Release date</label>
+        <label><input type="checkbox" name="releaseTime"> Release time</label>
+        <label><input type="checkbox" name="views"> Views</label>
+        <label><input type="checkbox" name="keywords"> Keywords</label>
+    </fieldset>
+
+    <fieldset id="player-options">
+        <legend>Player options</legend>
+        <label for="list-position">List position:</label>
+        <select id="list-position">
+            <option value="right">Right</option>
+            <option value="left">Left</option>
+            <option value="bottom">Bottom</option>
+            <option value="top">Top</option>
+        </select>
+        <label><input type="checkbox" id="auto-next" checked> Auto next</label>
+        <label><input type="checkbox" id="loop"> Loop</label>
+        <label><input type="checkbox" id="interactive-thumbnails"> Interactive thumbnails</label>
+        <label for="page-size">Medias per page:</label>
+        <input type="number" id="page-size" value="2" min="1" max="200" style="width:5rem;">
+    </fieldset>
+
+    <hr>
+
+    <div id="playlist-player-container"></div>
+    <p id="share-feedback"></p>
+</div>
+
+<script type="module">
+    import * as Streamlike from '../dist/index.mjs';
+
+    const container = document.getElementById('playlist-player-container');
+    const form = document.getElementById('playlist-form');
+    const playlistInput = document.getElementById('playlist-id-input');
+    const infoOptions = document.getElementById('info-options');
+    const listPositionSelect = document.getElementById('list-position');
+    const autoNextInput = document.getElementById('auto-next');
+    const loopInput = document.getElementById('loop');
+    const interactiveThumbsInput = document.getElementById('interactive-thumbnails');
+    const pageSizeInput = document.getElementById('page-size');
+    const shareButton = document.getElementById('share-button');
+    const shareFeedback = document.getElementById('share-feedback');
+
+    const debug = false;
+    let controller = null;
+
+    /**
+     * Reads the "information displayed" checkboxes.
+     *
+     * @return {Object} A PlaylistPlayerInfoOptions object.
+     */
+    function getInfoOptions() {
+        const info = {};
+        infoOptions.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            info[input.name] = input.checked;
+        });
+        return info;
+    }
+
+    /**
+     * Creates (or recreates) the playlist player for the given playlist.
+     *
+     * @param {string} playlistId - The playlist to play.
+     * @return {Promise<void>}
+     */
+    async function loadPlaylistPlayer(playlistId) {
+        if (!playlistId) return;
+        if (controller) controller.destroy();
+
+        controller = await Streamlike.generatePlaylistPlayer(container, {
+            playlistId: playlistId,
+            // A shared link (?media=...&t=...) starts on the right media, at the right position
+            shareParams: {enabled: true},
+            autoNext: autoNextInput.checked,
+            // The list starts with one page, then grows as playback advances.
+            pageSize: parseInt(pageSizeInput.value, 10) || 10,
+            loop: loopInput.checked,
+            listPosition: listPositionSelect.value,
+            info: getInfoOptions(),
+            listItem: {
+                interactiveThumbnail: interactiveThumbsInput.checked ? {mode: 'animation'} : undefined
+            },
+            playerParams: {
+                active_color: '293c5a'
+            },
+            onMediaChange: (media, index) => {
+                if (debug) console.debug('Now playing', index, media.metadata.global.name);
+            },
+            onPlaylistEnd: () => console.log('End of the playlist.'),
+            debug: debug,
+            baseOptions: {debug: debug}
+        });
+
+        if (!controller.res) {
+            console.error('Playlist player error:', controller.errors);
+        }
+    }
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        loadPlaylistPlayer(playlistInput.value);
+    });
+
+    shareButton.addEventListener('click', async () => {
+        if (!controller?.res) return;
+        const url = controller.getShareUrl();
+        try {
+            await navigator.clipboard.writeText(url);
+            shareFeedback.textContent = `Link copied: ${url}`;
+        } catch {
+            shareFeedback.textContent = url;
+        }
+    });
+
+    [listPositionSelect, autoNextInput, loopInput, interactiveThumbsInput, pageSizeInput, infoOptions].forEach(element => {
+        element.addEventListener('change', () => loadPlaylistPlayer(playlistInput.value));
+    });
+
+    loadPlaylistPlayer(playlistInput.value);
+</script>
+
+</body>
+</html>

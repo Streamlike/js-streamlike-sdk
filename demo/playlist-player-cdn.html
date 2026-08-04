@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike SDK - Playlist Player from CDN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container container-wide">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK - Playlist Player from CDN</h1>
+    <p>
+        Same demo as <a href="playlist-player.html">Playlist Player</a>, but the SDK is loaded from a public
+        CDN instead of the local <code>dist/</code> folder: no <code>npm install</code>, no build step.
+        The SDK has no runtime dependency, so <code>dist/index.mjs</code> is directly importable by the browser.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <form id="playlist-form">
+        <label for="playlist-id-input">Playlist ID:</label>
+        <input type="text" id="playlist-id-input" value="c4da86fddd8f0ada" required>
+        <button type="submit">Load Playlist</button>
+    </form>
+
+    <p id="status" class="status"></p>
+
+    <div id="playlist-player-container"></div>
+
+    <h2>The two integration modes</h2>
+    <p>ES module — the recommended one, used by this very page:</p>
+    <pre><code>&lt;script type="module"&gt;
+    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.mjs';
+
+    await generatePlaylistPlayer('my-player', { playlistId: 'c4da86fddd8f0ada' });
+&lt;/script&gt;</code></pre>
+
+    <p>Classic script — for pages that cannot use ES modules; everything lands on the <code>Streamlike</code> global:</p>
+    <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.global.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+    Streamlike.generatePlaylistPlayer('my-player', { playlistId: 'c4da86fddd8f0ada' });
+&lt;/script&gt;</code></pre>
+</div>
+
+<script type="module">
+    // Always pin an exact version in production: @latest would push your future
+    // releases onto pages you no longer control.
+    const SDK_VERSION = '3.5.0';
+    const SDK_URL = `https://cdn.jsdelivr.net/npm/js-streamlike-sdk@${SDK_VERSION}/dist/index.mjs`;
+
+    const container = document.getElementById('playlist-player-container');
+    const form = document.getElementById('playlist-form');
+    const playlistInput = document.getElementById('playlist-id-input');
+    const status = document.getElementById('status');
+
+    let Streamlike = null;
+    let controller = null;
+
+    /**
+     * Loads the SDK from the CDN, reporting a readable message on failure
+     * (typically a version not published yet, or an offline network).
+     *
+     * @return {Promise<boolean>} True when the SDK is available.
+     */
+    async function loadSdk() {
+        if (Streamlike) return true;
+        status.textContent = `Loading the SDK from ${SDK_URL}…`;
+        try {
+            Streamlike = await import(SDK_URL);
+            status.textContent = `SDK v${Streamlike.SDK_VERSION} loaded from jsDelivr.`;
+            status.classList.add('status-ok');
+            return true;
+        } catch (error) {
+            status.classList.add('status-error');
+            status.textContent = `Could not load the SDK from ${SDK_URL} — check that version ${SDK_VERSION} is published on npm. (${error.message})`;
+            return false;
+        }
+    }
+
+    /**
+     * Creates the playlist player for the given playlist.
+     *
+     * @param {string} playlistId - The playlist to play.
+     * @return {Promise<void>}
+     */
+    async function loadPlaylistPlayer(playlistId) {
+        if (!playlistId || !await loadSdk()) return;
+        if (controller) controller.destroy();
+
+        controller = await Streamlike.generatePlaylistPlayer(container, {
+            playlistId: playlistId,
+            shareParams: {enabled: true},
+            locale: 'fr-FR',
+            info: {title: true, position: true, duration: true, currentTime: true, description: true}
+        });
+
+        if (!controller.res) {
+            status.classList.add('status-error');
+            status.textContent = `Playlist player error: ${controller.errors}`;
+        }
+    }
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        loadPlaylistPlayer(playlistInput.value);
+    });
+
+    loadPlaylistPlayer(playlistInput.value);
+</script>
+
+</body>
+</html>
