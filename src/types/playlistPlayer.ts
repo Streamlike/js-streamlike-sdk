@@ -75,6 +75,8 @@ export interface PlaylistPlayerInfoOptions {
 
 /**
  * Toggles for the information displayed on each entry of the playlist list.
+ * `duration`, `releaseDate`, `releaseTime` and `views` are gathered, in that
+ * order, in a `{prefix}-item-meta` row displayed under the title.
  */
 export interface PlaylistPlayerListItemOptions {
     /**
@@ -103,6 +105,21 @@ export interface PlaylistPlayerListItemOptions {
      * @default true
      */
     duration?: boolean;
+    /**
+     * Release date of the media. Class: `{prefix}-item-date`
+     * @default false
+     */
+    releaseDate?: boolean;
+    /**
+     * Time of day (hours and minutes) of the release date. Class: `{prefix}-item-time`
+     * @default false
+     */
+    releaseTime?: boolean;
+    /**
+     * Playback count of the media. Class: `{prefix}-item-views`
+     * @default false
+     */
+    views?: boolean;
     /**
      * Media description. Class: `{prefix}-item-description`
      * @default false
