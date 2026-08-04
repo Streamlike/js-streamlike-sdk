@@ -128,6 +128,8 @@ export interface PlaylistPlayerLabels {
     views?: string;
     /** @default "medias" */
     medias?: string;
+    /** Label of the button loading the next medias. @default "Load more" */
+    more?: string;
 }
 
 /**
@@ -177,10 +179,24 @@ export interface PlaylistPlayerOptions {
      */
     medias?: MediaContainer[];
     /**
-     * Extra parameters (paging, ordering, filters) forwarded to `/ws/playlist`.
+     * Extra parameters (ordering, filters) forwarded to `/ws/playlist`.
      * @default { orderby: OrderByPlaylist.POSITION, sortorder: SortOrder.Up }
      */
     playlistParams?: PlaylistParams;
+    /**
+     * Number of medias fetched per request. The list starts with one page, then
+     * grows: the next page is fetched when playback approaches the end of the
+     * loaded medias, and a "load more" button appears while some remain.
+     * Defaults to `playlistParams.pagesize` when set.
+     * @default 10
+     */
+    pageSize?: number;
+    /**
+     * Number of loaded medias still ahead below which the next page is fetched.
+     * With the default page size, reaching the 9th media loads the next ten.
+     * @default 2
+     */
+    prefetchThreshold?: number;
     /**
      * ID of the media to start with. Falls back to the first media of the playlist.
      */
@@ -341,9 +357,19 @@ export interface PlaylistPlayerController extends CallbackResponse<PlaylistPlaye
      */
     getCurrentMedia: () => Media | null;
     /**
-     * Medias handled by the player, in playing order.
+     * Medias currently loaded, in playing order. The array grows as further
+     * pages are fetched.
      */
     getMedias: () => MediaContainer[];
+    /**
+     * Total number of medias in the playlist, loaded or not.
+     */
+    getTotal: () => number;
+    /**
+     * Fetches the next page of medias and appends it to the list. Resolves to
+     * false when nothing was added (everything is loaded, or the request failed).
+     */
+    loadMore: () => Promise<boolean>;
     /**
      * Last playback position reported by the player, in seconds.
      */

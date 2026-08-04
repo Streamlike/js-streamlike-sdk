@@ -17,6 +17,12 @@ import {generateThumbnail} from "./preview";
 
 const DEFAULT_PREFIX = 'sl-playlist';
 
+/** Medias fetched per request, matching the `/ws/playlist` default. */
+const DEFAULT_PAGE_SIZE = 10;
+
+/** Remaining loaded medias below which the next page is fetched. */
+const DEFAULT_PREFETCH_THRESHOLD = 2;
+
 const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     previous: 'Previous',
     next: 'Next',
@@ -24,7 +30,8 @@ const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     empty: 'This playlist is empty.',
     error: 'Unable to load the playlist.',
     views: 'views',
-    medias: 'medias'
+    medias: 'medias',
+    more: 'Load more'
 };
 
 const DEFAULT_INFO: Required<PlaylistPlayerInfoOptions> = {
@@ -175,6 +182,7 @@ function _injectStyles(p: string): void {
 .${p}-item-title { font-size: .9rem; }
 .${p}-item-duration { font-size: .75rem; opacity: .65; }
 .${p}-item-description { font-size: .75rem; opacity: .7; }
+.${p}-list-more { width: 100%; margin-top: .25rem; }
 .${p}-message { padding: 1rem; text-align: center; opacity: .7; }
 @media (max-width: 720px) {
     .${p}--list-right, .${p}--list-left { flex-direction: column; }
@@ -204,6 +212,8 @@ function _errorController(errors: string): PlaylistPlayerController {
         getCurrentIndex: () => -1,
         getCurrentMedia: () => null,
         getMedias: () => [],
+        getTotal: () => 0,
+        loadMore: () => Promise.resolve(false),
         getCurrentTime: () => 0,
         getShareUrl: () => '',
         destroy: noop
@@ -261,6 +271,9 @@ export async function generatePlaylistPlayer(
         baseOptions = {}
     } = options;
 
+    const pageSize = Math.max(1, Number(options.pageSize ?? options.playlistParams?.pagesize ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE);
+    const prefetchThreshold = Math.max(0, options.prefetchThreshold ?? DEFAULT_PREFETCH_THRESHOLD);
+
     const debug = options.debug ?? baseOptions.debug ?? false;
     const p = classPrefix;
     const info: Required<PlaylistPlayerInfoOptions> = {...DEFAULT_INFO, ...options.info};
@@ -293,38 +306,60 @@ export async function generatePlaylistPlayer(
     // --- Medias ---
     let medias: MediaContainer[] = [];
     let playlistMetadata: PlaylistMetadata | null = null;
+    let total = 0;
 
-    if (providedMedias?.length) {
-        medias = providedMedias;
-    } else if (playlistId || viewId || companyId) {
-        const params = {
-            orderby: OrderByPlaylist.POSITION,
-            sortorder: SortOrder.Up,
-            ...playlistParams,
-            ...(playlistId ? {playlist_id: playlistId} : {}),
-            ...(viewId ? {view_id: viewId} : {}),
-            ...(companyId ? {company_id: companyId} : {})
-        };
-        const response = await getWsPlaylist(params, baseOptions);
+    // Base query reused by every page. `page` is an item offset, not a page
+    // number: page=10 with pagesize=10 returns the medias 11 to 20.
+    const sourceParams = (playlistId || viewId || companyId) ? {
+        orderby: OrderByPlaylist.POSITION,
+        sortorder: SortOrder.Up,
+        ...playlistParams,
+        ...(playlistId ? {playlist_id: playlistId} : {}),
+        ...(viewId ? {view_id: viewId} : {}),
+        ...(companyId ? {company_id: companyId} : {})
+    } : null;
+
+    /** Keeps only playable medias, dropping the ones already loaded. */
+    const _newMedias = (incoming: MediaContainer[]): MediaContainer[] => {
+        const known = new Set(medias.map(item => item.media.metadata.global.media_id));
+        return incoming.filter(item => {
+            const id = item?.media?.metadata?.global?.media_id;
+            return !!id && !known.has(id);
+        });
+    };
+
+    /** Fetches one page of medias, starting at the given item offset. */
+    const _fetchPage = async (offset: number, size: number = pageSize) => {
+        if (!sourceParams) return {medias: [] as MediaContainer[], metadata: null, errors: null as string | null};
+        const response = await getWsPlaylist({...sourceParams, pagesize: size, page: offset}, baseOptions);
         if (!response.res || !response.data) {
-            loadingMessage.textContent = labels.error;
-            if (debug) {
-                console.error('Playlist could not be loaded:', response.errors);
-                console.groupEnd();
-            }
-            return _errorController(response.errors ?? "Playlist could not be loaded.");
+            return {medias: [] as MediaContainer[], metadata: null, errors: response.errors ?? "Playlist could not be loaded."};
         }
         const playlist = (response.data as PlaylistResponse).playlist;
-        medias = playlist.medias ?? [];
-        playlistMetadata = playlist.metadata ?? null;
+        return {medias: playlist.medias ?? [], metadata: playlist.metadata ?? null, errors: null};
+    };
+
+    if (providedMedias?.length) {
+        medias = _newMedias(providedMedias);
+        total = medias.length;
+    } else if (sourceParams) {
+        const first = await _fetchPage(0);
+        if (first.errors) {
+            loadingMessage.textContent = labels.error;
+            if (debug) {
+                console.error('Playlist could not be loaded:', first.errors);
+                console.groupEnd();
+            }
+            return _errorController(first.errors);
+        }
+        medias = _newMedias(first.medias);
+        playlistMetadata = first.metadata;
+        total = Math.max(Number(playlistMetadata?.size ?? 0) || 0, medias.length);
     } else {
         loadingMessage.textContent = labels.error;
         if (debug) console.groupEnd();
         return _errorController("Missing playlist source: provide playlistId, viewId, companyId or medias.");
     }
-
-    // Keep only playable medias to avoid dead entries in the list.
-    medias = medias.filter(item => item?.media?.metadata?.global?.media_id);
 
     if (!medias.length) {
         loadingMessage.textContent = labels.empty;
@@ -382,65 +417,89 @@ export async function generatePlaylistPlayer(
     // --- List ---
     const listBox = _el('div', `${p}-list`);
     const itemsList = _el('ul', `${p}-items`);
+    const listCount = _el('span', `${p}-list-count`);
+    const moreButton = _el('button', `${p}-button ${p}-list-more`, labels.more);
     const itemElements: HTMLLIElement[] = [];
+    moreButton.type = 'button';
+
+    /** Builds one entry of the list for the media at the given index. */
+    const createListItem = (mediaContainer: MediaContainer, index: number): HTMLLIElement => {
+        const media = mediaContainer.media;
+        const global = media.metadata.global;
+
+        const item = _el('li', `${p}-item`);
+        item.dataset.mediaId = global.media_id;
+        item.dataset.index = String(index);
+
+        const button = _el('button', `${p}-item-button`);
+        button.type = 'button';
+
+        if (listItem.index) {
+            button.appendChild(_el('span', `${p}-item-index`, String(index + 1)));
+        }
+
+        if (listItem.thumbnail) {
+            const thumbnail = _el('div', `${p}-item-thumbnail`);
+            if (listItem.interactiveThumbnail) {
+                generateThumbnail(thumbnail, media.metadata.customization, {
+                    debug,
+                    ...listItem.interactiveThumbnail
+                }).catch(err => debug && console.error('Thumbnail generation failed:', err));
+            } else {
+                const img = document.createElement('img');
+                img.src = media.metadata.customization?.cover?.thumbnail_url ?? '';
+                img.alt = global.name ?? '';
+                img.setAttribute('loading', 'lazy');
+                thumbnail.appendChild(img);
+            }
+            button.appendChild(thumbnail);
+        }
+
+        const body = _el('div', `${p}-item-body`);
+        if (listItem.title) body.appendChild(_el('span', `${p}-item-title`, global.name ?? ''));
+        if (listItem.duration) {
+            body.appendChild(_el('span', `${p}-item-duration`, _formatTime(global.duration)));
+        }
+        if (listItem.description && global.description) {
+            body.appendChild(_el('span', `${p}-item-description`, _toPlainText(global.description)));
+        }
+        button.appendChild(body);
+
+        button.addEventListener('click', () => playIndex(index));
+        item.appendChild(button);
+        return item;
+    };
+
+    /** Appends the entries for the medias not rendered yet. */
+    const renderNewItems = () => {
+        if (!showList) return;
+        for (let index = itemElements.length; index < medias.length; index++) {
+            const item = createListItem(medias[index], index);
+            itemsList.appendChild(item);
+            itemElements.push(item);
+        }
+    };
+
+    /** Refreshes the counter and the visibility of the "load more" button. */
+    const updateListState = () => {
+        const remaining = Math.max(0, total - medias.length);
+        listCount.textContent = remaining > 0
+            ? `${medias.length} / ${total} ${labels.medias}`
+            : `${medias.length} ${labels.medias}`;
+        moreButton.style.display = remaining > 0 ? '' : 'none';
+    };
 
     if (showList) {
         const listHeader = _el('div', `${p}-list-header`);
         const listTitle = _el('span', `${p}-list-title`, (playlistMetadata?.name as string) ?? '');
-        const listCount = _el('span', `${p}-list-count`, `${medias.length} ${labels.medias}`);
         listHeader.appendChild(listTitle);
         listHeader.appendChild(listCount);
         listBox.appendChild(listHeader);
         listBox.appendChild(itemsList);
+        listBox.appendChild(moreButton);
         container.appendChild(listBox);
 
-        medias.forEach((mediaContainer, index) => {
-            const media = mediaContainer.media;
-            const global = media.metadata.global;
-
-            const item = _el('li', `${p}-item`);
-            item.dataset.mediaId = global.media_id;
-            item.dataset.index = String(index);
-
-            const button = _el('button', `${p}-item-button`);
-            button.type = 'button';
-
-            if (listItem.index) {
-                button.appendChild(_el('span', `${p}-item-index`, String(index + 1)));
-            }
-
-            if (listItem.thumbnail) {
-                const thumbnail = _el('div', `${p}-item-thumbnail`);
-                if (listItem.interactiveThumbnail) {
-                    generateThumbnail(thumbnail, media.metadata.customization, {
-                        debug,
-                        ...listItem.interactiveThumbnail
-                    }).catch(err => debug && console.error('Thumbnail generation failed:', err));
-                } else {
-                    const img = document.createElement('img');
-                    img.src = media.metadata.customization?.cover?.thumbnail_url ?? '';
-                    img.alt = global.name ?? '';
-                    img.loading = 'lazy';
-                    thumbnail.appendChild(img);
-                }
-                button.appendChild(thumbnail);
-            }
-
-            const body = _el('div', `${p}-item-body`);
-            if (listItem.title) body.appendChild(_el('span', `${p}-item-title`, global.name ?? ''));
-            if (listItem.duration) {
-                body.appendChild(_el('span', `${p}-item-duration`, _formatTime(global.duration)));
-            }
-            if (listItem.description && global.description) {
-                body.appendChild(_el('span', `${p}-item-description`, _toPlainText(global.description)));
-            }
-            button.appendChild(body);
-
-            button.addEventListener('click', () => playIndex(index));
-            item.appendChild(button);
-            itemsList.appendChild(item);
-            itemElements.push(item);
-        });
+        renderNewItems();
     }
 
     // --- State ---
@@ -467,7 +526,7 @@ export async function generatePlaylistPlayer(
         const global = media.metadata.global;
 
         if (info.title) infoTitle.textContent = global.name ?? '';
-        if (info.position) infoPosition.textContent = `${currentIndex + 1} / ${medias.length}`;
+        if (info.position) infoPosition.textContent = `${currentIndex + 1} / ${Math.max(total, medias.length)}`;
         if (info.duration) infoDuration.textContent = _formatTime(global.duration);
         if (info.currentTime) infoCurrentTime.textContent = _formatTime(currentTime);
         if (info.releaseDate) infoDate.textContent = _formatDate(global.release_date, locale);
@@ -493,9 +552,61 @@ export async function generatePlaylistPlayer(
         });
     };
 
+    const hasMore = () => !!sourceParams && medias.length < total;
+
     const updateControls = () => {
         prevButton.disabled = !loop && currentIndex <= 0;
-        nextButton.disabled = !loop && currentIndex >= medias.length - 1;
+        nextButton.disabled = !loop && !hasMore() && currentIndex >= medias.length - 1;
+    };
+
+    /**
+     * Fetches the next page of medias and appends it to the list.
+     * Concurrent calls share the same request.
+     */
+    let loadingPage: Promise<boolean> | null = null;
+    const loadMore = (): Promise<boolean> => {
+        if (loadingPage) return loadingPage;
+        if (!hasMore()) return Promise.resolve(false);
+
+        moreButton.disabled = true;
+        moreButton.textContent = labels.loading;
+
+        loadingPage = _fetchPage(medias.length).then(page => {
+            if (page.errors) {
+                if (debug) console.error('Could not load more medias:', page.errors);
+                return false;
+            }
+            const added = _newMedias(page.medias);
+            if (!added.length) {
+                // Nothing new came back: stop asking to avoid an endless loop.
+                total = medias.length;
+                if (debug) console.warn('No additional media returned, playlist considered complete.');
+                return false;
+            }
+            medias.push(...added);
+            if (page.metadata?.size) total = Math.max(Number(page.metadata.size) || 0, medias.length);
+            renderNewItems();
+            updateActiveItem();
+            if (debug) console.debug(`+${added.length} medias loaded (${medias.length}/${total}).`);
+            return true;
+        }).catch(error => {
+            if (debug) console.error('Could not load more medias:', error);
+            return false;
+        }).finally(() => {
+            loadingPage = null;
+            moreButton.disabled = false;
+            moreButton.textContent = labels.more;
+            updateListState();
+            updateControls();
+            updateInfo();
+        }) as Promise<boolean>;
+
+        return loadingPage;
+    };
+
+    /** Loads the next page ahead of time when the end of the list gets close. */
+    const prefetchIfNeeded = () => {
+        if (hasMore() && currentIndex >= medias.length - 1 - prefetchThreshold) loadMore();
     };
 
     /**
@@ -536,6 +647,7 @@ export async function generatePlaylistPlayer(
         updateActiveItem();
         updateControls();
         onMediaChange?.(media, index);
+        prefetchIfNeeded();
         return true;
     };
 
@@ -545,6 +657,14 @@ export async function generatePlaylistPlayer(
 
     const next = (): boolean => {
         if (currentIndex < medias.length - 1) return playIndex(currentIndex + 1);
+        if (hasMore()) {
+            // The next media is not loaded yet: play it as soon as it arrives.
+            const from = currentIndex;
+            loadMore().then(added => {
+                if (added && currentIndex === from) playIndex(from + 1);
+            });
+            return true;
+        }
         if (loop) return playIndex(0);
         return false;
     };
@@ -560,7 +680,7 @@ export async function generatePlaylistPlayer(
         endHandled = true;
         if (debug) console.debug('Media ended at index', currentIndex);
 
-        const isLast = currentIndex >= medias.length - 1;
+        const isLast = currentIndex >= medias.length - 1 && !hasMore();
         if (autoNext && (!isLast || loop)) {
             next();
             return;
@@ -611,6 +731,8 @@ export async function generatePlaylistPlayer(
 
     prevButton.addEventListener('click', () => previous());
     nextButton.addEventListener('click', () => next());
+    moreButton.addEventListener('click', () => loadMore());
+    updateListState();
 
     // --- Starting point (shared link support) ---
     const search = shareParams.enabled && typeof window !== 'undefined'
@@ -622,7 +744,23 @@ export async function generatePlaylistPlayer(
 
     let startIndex = 0;
     if (wantedMediaId) {
-        const found = medias.findIndex(item => item.media.metadata.global.media_id === wantedMediaId);
+        let found = medias.findIndex(item => item.media.metadata.global.media_id === wantedMediaId);
+
+        // A shared link can point to a media sitting beyond the first page. Rather
+        // than walking the pages one by one, load the whole playlist at once: it
+        // only happens when a starting media was explicitly requested.
+        if (found < 0 && hasMore()) {
+            if (debug) console.debug(`Media "${wantedMediaId}" not in the first page, loading the whole playlist to locate it.`);
+            const everything = await _fetchPage(0, total);
+            const added = _newMedias(everything.medias);
+            if (added.length) {
+                medias.push(...added);
+                renderNewItems();
+                updateListState();
+            }
+            found = medias.findIndex(item => item.media.metadata.global.media_id === wantedMediaId);
+        }
+
         if (found >= 0) startIndex = found;
         else if (debug) console.warn(`Media "${wantedMediaId}" is not part of this playlist, starting from the first one.`);
     }
@@ -654,6 +792,8 @@ export async function generatePlaylistPlayer(
         getCurrentIndex: () => currentIndex,
         getCurrentMedia,
         getMedias: () => medias,
+        getTotal: () => Math.max(total, medias.length),
+        loadMore,
         getCurrentTime: () => currentTime,
         getShareUrl: (shareOptions) => {
             const href = typeof window !== 'undefined' ? window.location.href : '';
