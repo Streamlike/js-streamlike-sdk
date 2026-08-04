@@ -130,6 +130,12 @@ export interface PlaylistPlayerLabels {
     medias?: string;
     /** Label of the button loading the next medias. @default "Load more" */
     more?: string;
+    /**
+     * Message shown on a media whose access is restricted: tokenized without
+     * password, or secured by IP / referrer.
+     * @default "Secured media"
+     */
+    secured?: string;
 }
 
 /**
@@ -226,13 +232,21 @@ export interface PlaylistPlayerOptions {
      */
     loop?: boolean;
     /**
-     * Keeps the tokenized medias in the playlist. They are dropped by default,
-     * since a plain player URL cannot play them: they would show up in the list
-     * and fail on playback. Enable it only when the integration supplies a
-     * token itself (`playerParams.sltoken`).
-     * @default false
+     * Hides the medias that cannot be played, that is the tokenized ones with
+     * no password: they are removed from the list and from the counts.
+     *
+     * Set it to `false` to keep them visible: their cover is displayed in the
+     * list and in place of the player, along with the `labels.secured` message
+     * and a button to jump to the next media.
+     *
+     * Two cases are never hidden, since they remain playable: a tokenized media
+     * protected by a password (the player prompts for it), and a media secured
+     * by IP or referrer (playback is attempted, the player answers a 404 when
+     * the restriction does not pass). Both display the message and the button
+     * as well.
+     * @default true
      */
-    includeTokenized?: boolean;
+    hideTokenized?: boolean;
     /**
      * Displays the navigable list of the playlist medias.
      * @default true

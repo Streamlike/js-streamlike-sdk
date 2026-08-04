@@ -66,6 +66,7 @@
         <label><input type="checkbox" id="auto-next" checked> Auto next</label>
         <label><input type="checkbox" id="loop"> Loop</label>
         <label><input type="checkbox" id="interactive-thumbnails"> Interactive thumbnails</label>
+        <label><input type="checkbox" id="hide-tokenized" checked> Hide unplayable medias</label>
         <label for="page-size">Medias per page:</label>
         <input type="number" id="page-size" value="2" min="1" max="200" style="width:5rem;">
     </fieldset>
@@ -88,6 +89,7 @@
     const loopInput = document.getElementById('loop');
     const interactiveThumbsInput = document.getElementById('interactive-thumbnails');
     const pageSizeInput = document.getElementById('page-size');
+    const hideTokenizedInput = document.getElementById('hide-tokenized');
     const shareButton = document.getElementById('share-button');
     const shareFeedback = document.getElementById('share-feedback');
 
@@ -125,6 +127,8 @@
             // The list starts with one page, then grows as playback advances.
             pageSize: parseInt(pageSizeInput.value, 10) || 10,
             loop: loopInput.checked,
+            // décoché : les médias non lisibles restent visibles, avec un message
+            hideTokenized: hideTokenizedInput.checked,
             listPosition: listPositionSelect.value,
             info: getInfoOptions(),
             listItem: {
@@ -162,7 +166,7 @@
         }
     });
 
-    [listPositionSelect, autoNextInput, loopInput, interactiveThumbsInput, pageSizeInput, infoOptions].forEach(element => {
+    [listPositionSelect, autoNextInput, loopInput, interactiveThumbsInput, pageSizeInput, hideTokenizedInput, infoOptions].forEach(element => {
         element.addEventListener('change', () => loadPlaylistPlayer(playlistInput.value));
     });
 
