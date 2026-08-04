@@ -333,6 +333,12 @@ a 404 when the access does not pass, and allows cross-origin reads, so the outco
 guessed. The probe runs alongside the player, so a media that plays is never delayed, and it is skipped
 entirely for ordinary medias.
 
+The notice is shown only when the access really fails, and only that 404 counts as a failure: if the probe
+cannot conclude — network error, CORS rejection, 5xx — a media secured by IP or referrer keeps its player
+and no notice. It is never displayed on sight either, so a tokenized media that plays thanks to a valid
+`playerParams.sltoken` never flashes it. The one case where an unconcluded probe still shows it is a media
+tokenized without password: no plain player URL can play it, so its cover stays in place.
+
 With `hideTokenized: true` (the default), the hidden medias are removed from the list **and** from the
 counts: the size announced by the API is corrected by the number of medias dropped, so the counter, the
 position and the paging stay consistent.

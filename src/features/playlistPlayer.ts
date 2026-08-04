@@ -189,7 +189,7 @@ function _injectStyles(p: string): void {
 .${p}-list-more { width: 100%; margin-top: .25rem; }
 .${p}-player-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
 .${p}-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .8rem; border-radius: 6px; background: rgba(41, 60, 90, .1); }
-.${p}-notice-message { font-size: .9rem; }
+.${p}-notice-message { font-size: .9rem; margin: .25rem .5rem; }
 .${p}-item.is-locked .${p}-item-thumbnail { opacity: .55; }
 .${p}-message { padding: 1rem; text-align: center; opacity: .7; }
 @media (max-width: 720px) {
@@ -610,13 +610,17 @@ export async function generatePlaylistPlayer(
      * 404 when a token is missing or an IP / referrer restriction does not pass,
      * and allows cross-origin reads, so a HEAD is enough to know.
      *
-     * Returns `unknown` when the request itself fails, since a network error
-     * says nothing about the media.
+     * Only that 404 counts as a refused access (`ko`). Any other failure — a
+     * network error, a CORS rejection, a 5xx — says nothing about the media and
+     * returns `unknown`, so a working media is never reported as restricted.
      */
     const _probePlayer = async (url: string): Promise<'ok' | 'ko' | 'unknown'> => {
         try {
             const response = await fetch(url, {method: 'HEAD'});
-            return response.ok ? 'ok' : 'ko';
+            if (response.ok) return 'ok';
+            if (response.status === 404) return 'ko';
+            if (debug) console.debug(`Player URL answered ${response.status}, access undetermined.`);
+            return 'unknown';
         } catch (error) {
             if (debug) console.debug('Could not probe the player URL:', error);
             return 'unknown';
@@ -788,15 +792,13 @@ export async function generatePlaylistPlayer(
         // Invalidates any probe still in flight for a previously loaded media.
         const token = ++renderToken;
 
-        // Optimistic rendering: a locked media is assumed unplayable, a secured
-        // one is assumed playable. The probe below corrects whichever is wrong.
-        if (access === 'locked') {
-            showCover();
-            showNotice(true);
-        } else {
-            embed();
-            showNotice(false);
-        }
+        // A locked media cannot be played from a plain player URL, so its cover
+        // stands in for the player right away; anything else is embedded. The
+        // notice, itself, always starts hidden and waits for the probe: it must
+        // never show up on a media that ends up playing.
+        if (access === 'locked') showCover();
+        else embed();
+        showNotice(false);
 
         if (access === 'locked' || access === 'secured') {
             if (debug) console.debug(`Media "${global.media_id}" access: ${access}, probing the player URL.`);
@@ -804,17 +806,19 @@ export async function generatePlaylistPlayer(
                 if (token !== renderToken) return; // the reader moved on already
                 if (result === 'ok') {
                     // Playable after all: a valid token, or the IP / referrer passes.
-                    if (access === 'locked') {
-                        embed();
-                        showNotice(false);
-                    }
-                } else if (result === 'ko') {
+                    if (access === 'locked') embed();
+                    return;
+                }
+                if (result === 'ko') {
+                    // Confirmed 404: the access does not pass, there is nothing to play.
                     showCover();
                     showNotice(true);
-                } else if (access === 'secured') {
-                    // Undetermined: keep the player, but offer the way out.
-                    showNotice(true);
+                    return;
                 }
+                // Undetermined. A secured media keeps its player, since nothing
+                // proves it fails; a locked one has no plain URL to fall back on,
+                // so its cover and the notice stand.
+                if (access === 'locked') showNotice(true);
             });
         }
 
