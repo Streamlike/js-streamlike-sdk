@@ -269,6 +269,7 @@ media when the current one ends.
         },
 
         listPosition: 'right',   // 'right' | 'left' | 'bottom' | 'top'
+        pageSize: 10,            // medias fetched per request
         autoNext: true,          // play the next media at the end of the current one
         loop: false,             // go back to the first media after the last one
         autostart: false,        // start playing right away
@@ -282,6 +283,31 @@ media when the current one ends.
     controller.playMedia('media-id', 65);
 </script>
 ```
+
+#### Long playlists
+The medias are loaded page by page — `pageSize` per request, 10 by default, which is also the `/ws/playlist`
+default. The list then grows on its own:
+
+- playback approaching the end of the loaded medias triggers the next page (`prefetchThreshold`, 2 by
+  default: with a page of 10, reaching the 9th media loads the following ten);
+- a **load more** button (`{prefix}-list-more`) appears in the list while medias remain, and disappears once
+  everything is loaded;
+- the counter in the list header shows `20 / 330 medias` while the playlist is partially loaded.
+
+`getTotal()` returns the size of the whole playlist and `loadMore()` fetches the next page by hand, for
+custom interfaces. Raise `pageSize` to load everything in one request:
+
+```js
+await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    pageSize: 500
+});
+```
+
+Two things to keep in mind on large playlists. A shared link pointing to a media beyond the first page makes
+the player load the whole playlist at once to locate it — one extra request, only when a starting media is
+requested. And `listItem.interactiveThumbnail` downloads one storyboard file per entry as soon as it is
+rendered: keep it for short playlists, a few dozen entries at most.
 
 #### Start on a given media at a given timecode (sharing)
 Pass `startMediaId` and `startTimecode` (seconds or `hh:mm:ss.mmm`) to open the player on a specific moment:
@@ -320,7 +346,7 @@ UI can be restyled from your own CSS:
 | `sl-playlist-controls` / `sl-playlist-button` / `sl-playlist-button-prev` / `sl-playlist-button-next` | Navigation controls |
 | `sl-playlist-info` | Information panel |
 | `sl-playlist-info-title` / `-playlist` / `-meta` / `-position` / `-duration` / `-currenttime` / `-date` / `-time` / `-views` / `-description` / `-keywords` / `-keyword` | Information items |
-| `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` | Playlist list |
+| `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` / `-list-more` | Playlist list and its "load more" button |
 | `sl-playlist-item` (+ `is-active`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-duration` / `-item-description` | List entries |
 
 A default stylesheet is injected once per prefix, using single-class selectors so your own rules override it
@@ -363,7 +389,7 @@ as plain text (HTML markup is stripped).
 - `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
 - `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
-- `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getCurrentTime`, `getShareUrl`, `destroy`).
+- `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `loadMore`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getTotal`, `getCurrentTime`, `getShareUrl`, `destroy`).
 
 ### Important Types
 - `Media`: Represents a media entity containing metadata, statistics, and HTML5 sources.

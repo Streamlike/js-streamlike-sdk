@@ -8,6 +8,8 @@
 - Added deep-link support through `startMediaId` / `startTimecode` and `shareParams`, so a shared link can start on a given media at a given position. The returned controller exposes `getShareUrl()` to build such a link.
 - Every generated element carries a CSS class built from the configurable `classPrefix` (`sl-playlist` by default); the default stylesheet uses single-class selectors and can be disabled with `injectStyles: false`.
 - Exposed `embedPlayerIframe`, the iframe creation helper extracted from `setResponsiveIframe` and shared with the playlist player (which therefore navigates without extra API calls).
+- Medias are loaded incrementally: `pageSize` (10 by default) medias per request, the next page being fetched when playback approaches the end of the loaded ones (`prefetchThreshold`), plus a "load more" button in the list while medias remain. `getTotal()` and `loadMore()` were added to the controller, and the list counter shows the loaded/total ratio.
+- A shared link targeting a media beyond the first page now loads the whole playlist to locate it, instead of falling back to the first media.
 - Added the `demo/playlist-player.html` demo page.
 - Added a browser global build (`dist/index.global.js`, IIFE, minified, `Streamlike` global) so the SDK can be used from a `<script>` tag without ES modules. The `build` script now produces it alongside the CJS/ESM/types outputs, and the `unpkg` / `jsdelivr` package fields point to it.
 - Documented CDN usage (jsDelivr, unpkg) in the `README.md`, with the `demo/playlist-player-cdn.html` demo page loading the SDK without any install.
