@@ -1,5 +1,5 @@
 // --- SDK Version ---
-export const SDK_VERSION = "3.5.0";
+export const SDK_VERSION = "3.5.1";
 // console.log(`%cStreamlike SDK v${SDK_VERSION} loaded`, "color: #00ff00; font-weight: bold;");
 
 // --- API Methods ---

@@ -271,6 +271,7 @@ media when the current one ends.
         listPosition: 'right',   // 'right' | 'left' | 'bottom' | 'top'
         pageSize: 10,            // medias fetched per request
         autoNext: true,          // play the next media at the end of the current one
+        includeTokenized: false, // keep tokenized medias, which cannot be played as-is
         loop: false,             // go back to the first media after the last one
         autostart: false,        // start playing right away
         labels: { previous: 'Précédent', next: 'Suivant' },
@@ -308,6 +309,14 @@ Two things to keep in mind on large playlists. A shared link pointing to a media
 the player load the whole playlist at once to locate it — one extra request, only when a starting media is
 requested. And `listItem.interactiveThumbnail` downloads one storyboard file per entry as soon as it is
 rendered: keep it for short playlists, a few dozen entries at most.
+
+#### Tokenized medias
+A tokenized media cannot be played from a plain player URL, so it is **removed from the playlist**: it would
+otherwise sit in the list and fail as soon as the reader clicks it. The size announced by the API is
+corrected by the number of medias dropped, so the counter, the position and the paging stay consistent.
+
+Set `includeTokenized: true` to keep them — only meaningful when your integration provides a token through
+`playerParams.sltoken`.
 
 #### Start on a given media at a given timecode (sharing)
 Pass `startMediaId` and `startTimecode` (seconds or `hh:mm:ss.mmm`) to open the player on a specific moment:
