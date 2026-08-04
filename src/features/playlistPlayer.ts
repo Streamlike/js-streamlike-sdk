@@ -586,6 +586,25 @@ export async function generatePlaylistPlayer(
     let currentTime = 0;
     let playerIframe: HTMLIFrameElement | null = null;
     let endHandled = false;
+    let renderToken = 0;  // invalidates a probe whose media is no longer the current one
+
+    /**
+     * Asks the player URL whether it can actually be played. `/play` answers a
+     * 404 when a token is missing or an IP / referrer restriction does not pass,
+     * and allows cross-origin reads, so a HEAD is enough to know.
+     *
+     * Returns `unknown` when the request itself fails, since a network error
+     * says nothing about the media.
+     */
+    const _probePlayer = async (url: string): Promise<'ok' | 'ko' | 'unknown'> => {
+        try {
+            const response = await fetch(url, {method: 'HEAD'});
+            return response.ok ? 'ok' : 'ko';
+        } catch (error) {
+            if (debug) console.debug('Could not probe the player URL:', error);
+            return 'unknown';
+        }
+    };
 
     const getCurrentMedia = (): Media | null => medias[currentIndex]?.media ?? null;
 
@@ -709,8 +728,29 @@ export async function generatePlaylistPlayer(
         currentTime = timecode;
         endHandled = false;
 
-        if (access === 'locked') {
-            // No player: a plain URL cannot play it. The cover stands in for the video.
+        const params: PlayerParams = {
+            ...playerParams,
+            med_id: global.media_id,
+            events: true,
+            autostart: play
+        };
+        if (timecode > 0) params.tc = timecode;
+        else delete params.tc;
+        const src = buildUrl('/play', params, baseOptions);
+
+        /** Loads the player. */
+        const embed = () => {
+            playerIframe = embedPlayerIframe(
+                playerBox,
+                src,
+                global.ratio || 16 / 9,
+                {...iframeParams, id: `${p}-media-${global.media_id}`},
+                debug
+            );
+        };
+
+        /** Replaces the player by the cover of the media. */
+        const showCover = () => {
             playerIframe = null;
             playerBox.innerHTML = '';
             playerBox.style.overflow = 'hidden';
@@ -721,31 +761,45 @@ export async function generatePlaylistPlayer(
                 ?? media.metadata.customization?.cover?.url ?? '';
             cover.alt = global.name ?? '';
             playerBox.appendChild(cover);
-        } else {
-            const params: PlayerParams = {
-                ...playerParams,
-                med_id: global.media_id,
-                events: true,
-                autostart: play
-            };
-            if (timecode > 0) params.tc = timecode;
-            else delete params.tc;
+        };
 
-            const src = buildUrl('/play', params, baseOptions);
-            playerIframe = embedPlayerIframe(
-                playerBox,
-                src,
-                global.ratio || 16 / 9,
-                {...iframeParams, id: `${p}-media-${global.media_id}`},
-                debug
-            );
+        const showNotice = (show: boolean) => {
+            notice.style.display = show ? '' : 'none';
+            if (show) noticeMessage.textContent = labels.secured;
+        };
+
+        // Invalidates any probe still in flight for a previously loaded media.
+        const token = ++renderToken;
+
+        // Optimistic rendering: a locked media is assumed unplayable, a secured
+        // one is assumed playable. The probe below corrects whichever is wrong.
+        if (access === 'locked') {
+            showCover();
+            showNotice(true);
+        } else {
+            embed();
+            showNotice(false);
         }
 
-        // A restricted media may answer a 404: keep an explicit way to move on.
-        const restricted = access === 'locked' || access === 'secured';
-        notice.style.display = restricted ? '' : 'none';
-        if (restricted) noticeMessage.textContent = labels.secured;
-        if (debug && restricted) console.debug(`Media "${global.media_id}" access: ${access}.`);
+        if (access === 'locked' || access === 'secured') {
+            if (debug) console.debug(`Media "${global.media_id}" access: ${access}, probing the player URL.`);
+            _probePlayer(src).then(result => {
+                if (token !== renderToken) return; // the reader moved on already
+                if (result === 'ok') {
+                    // Playable after all: a valid token, or the IP / referrer passes.
+                    if (access === 'locked') {
+                        embed();
+                        showNotice(false);
+                    }
+                } else if (result === 'ko') {
+                    showCover();
+                    showNotice(true);
+                } else if (access === 'secured') {
+                    // Undetermined: keep the player, but offer the way out.
+                    showNotice(true);
+                }
+            });
+        }
 
         updateInfo();
         updateActiveItem();

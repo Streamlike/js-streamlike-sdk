@@ -131,8 +131,8 @@ export interface PlaylistPlayerLabels {
     /** Label of the button loading the next medias. @default "Load more" */
     more?: string;
     /**
-     * Message shown on a media whose access is restricted: tokenized without
-     * password, or secured by IP / referrer.
+     * Message shown when a media cannot be played: missing token, or an IP /
+     * referrer restriction that does not pass.
      * @default "Secured media"
      */
     secured?: string;
@@ -241,9 +241,11 @@ export interface PlaylistPlayerOptions {
      *
      * Two cases are never hidden, since they remain playable: a tokenized media
      * protected by a password (the player prompts for it), and a media secured
-     * by IP or referrer (playback is attempted, the player answers a 404 when
-     * the restriction does not pass). Both display the message and the button
-     * as well.
+     * by IP or referrer.
+     *
+     * For those restricted medias the player URL is probed (a HEAD request,
+     * `/play` answers a 404 when the access does not pass), so the message and
+     * the button appear only when playback really fails.
      * @default true
      */
     hideTokenized?: boolean;

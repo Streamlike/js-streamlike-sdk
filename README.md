@@ -315,9 +315,14 @@ Some medias cannot be played from a plain player URL. The player sorts them out:
 
 | Media | Behaviour |
 | --- | --- |
-| Tokenized, no password | Cannot be played. Hidden by default (`hideTokenized`), otherwise its cover replaces the player, with the message and the *next* button. |
+| Tokenized, no password | Hidden by default (`hideTokenized`), otherwise its cover replaces the player, with the message and the *next* button. Played anyway when the URL carries a valid `playerParams.sltoken`. |
 | Tokenized, password protected | Played normally, the player prompts for the password. Never hidden. |
-| Secured by IP or referrer (`is_secured`) | Playback is attempted; the player answers a 404 when the restriction does not pass. The message and the *next* button are shown alongside. |
+| Secured by IP or referrer (`is_secured`) | Played normally. The message and the *next* button appear only if playback fails. |
+
+For those restricted medias, the player URL is probed with a `HEAD` request before deciding: `/play` answers
+a 404 when the access does not pass, and allows cross-origin reads, so the outcome is known rather than
+guessed. The probe runs alongside the player, so a media that plays is never delayed, and it is skipped
+entirely for ordinary medias.
 
 With `hideTokenized: true` (the default), the hidden medias are removed from the list **and** from the
 counts: the size announced by the API is corrected by the number of medias dropped, so the counter, the

@@ -4,7 +4,7 @@
 ### New Features (Minor)
 - `generatePlaylistPlayer` handles the medias whose access is restricted. A tokenized media without password cannot be played from a plain player URL: it used to appear in the list and fail as soon as the reader clicked it. `PlaylistPlayerOptions.hideTokenized` (true by default) removes it from the list and from the counts; set to `false`, its cover is shown in the list and in place of the player, with the `labels.secured` message and a button to jump to the next media.
 - A tokenized media protected by a password stays playable and is never hidden: the player prompts for the password.
-- A media secured by IP or referrer (`is_secured` without `is_tokenized`) stays playable — playback is attempted and the player answers a 404 when the restriction does not pass — and displays the same message and button.
+- A media secured by IP or referrer (`is_secured` without `is_tokenized`) stays playable. The player URL is probed with a HEAD request — `/play` answers a 404 when the access does not pass, and allows cross-origin reads — so the message and the button appear only when playback really fails. A tokenized media whose URL carries a valid token (`playerParams.sltoken`) is played rather than blocked.
 - Added `labels.secured` (default `Secured media`) and the `{prefix}-notice`, `{prefix}-notice-message`, `{prefix}-notice-next`, `{prefix}-player-cover` classes, plus `is-locked` / `is-secured` on the concerned list entries.
 - The offset used for paging is tracked separately from the kept medias, so hiding an entry no longer shifts the next page, and a page made only of hidden medias no longer ends the pagination.
 
