@@ -1,5 +1,5 @@
 # Changelog
-## [3.5.0] - 2026-08-03
+## [3.5.0] - 2026-08-04
 
 ### New Features (Minor)
 - Introduced `generatePlaylistPlayer`, a playlist player that plays every media of an ordered playlist, with previous / next controls, a clickable media list and auto-advance at the end of a media.
