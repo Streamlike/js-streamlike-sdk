@@ -226,6 +226,14 @@ export interface PlaylistPlayerOptions {
      */
     loop?: boolean;
     /**
+     * Keeps the tokenized medias in the playlist. They are dropped by default,
+     * since a plain player URL cannot play them: they would show up in the list
+     * and fail on playback. Enable it only when the integration supplies a
+     * token itself (`playerParams.sltoken`).
+     * @default false
+     */
+    includeTokenized?: boolean;
+    /**
      * Displays the navigable list of the playlist medias.
      * @default true
      */

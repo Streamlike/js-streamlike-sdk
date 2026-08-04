@@ -1,4 +1,10 @@
 # Changelog
+## [3.5.1] - 2026-08-04
+
+### Fix
+- `generatePlaylistPlayer` now drops the tokenized medias from the playlist: a plain player URL cannot play them, so they used to appear in the list and fail as soon as the reader clicked them. The size announced by the API is corrected by the number of medias dropped, so the counter, the position and the paging stay consistent.
+- Added `PlaylistPlayerOptions.includeTokenized` to keep them anyway, for integrations supplying their own token through `playerParams.sltoken`.
+
 ## [3.5.0] - 2026-08-04
 
 ### New Features (Minor)

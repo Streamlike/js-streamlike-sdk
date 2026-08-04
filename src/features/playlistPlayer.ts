@@ -257,6 +257,7 @@ export async function generatePlaylistPlayer(
         autoplayOnChange = true,
         autoNext = true,
         loop = false,
+        includeTokenized = false,
         showList = true,
         showControls = true,
         listPosition = PlaylistListPosition.Right,
@@ -304,9 +305,12 @@ export async function generatePlaylistPlayer(
     main.appendChild(loadingMessage);
 
     // --- Medias ---
-    let medias: MediaContainer[] = [];
+    const medias: MediaContainer[] = [];
     let playlistMetadata: PlaylistMetadata | null = null;
-    let total = 0;
+    let apiTotal = 0;    // playlist size announced by the API, unplayable medias included
+    let fetched = 0;     // items received so far, used as the offset of the next page
+    let skipped = 0;     // medias dropped because they cannot be played
+    let noMore = false;  // the API returned nothing more
 
     // Base query reused by every page. `page` is an item offset, not a page
     // number: page=10 with pagesize=10 returns the medias 11 to 20.
@@ -319,14 +323,49 @@ export async function generatePlaylistPlayer(
         ...(companyId ? {company_id: companyId} : {})
     } : null;
 
-    /** Keeps only playable medias, dropping the ones already loaded. */
-    const _newMedias = (incoming: MediaContainer[]): MediaContainer[] => {
-        const known = new Set(medias.map(item => item.media.metadata.global.media_id));
-        return incoming.filter(item => {
-            const id = item?.media?.metadata?.global?.media_id;
-            return !!id && !known.has(id);
-        });
+    /**
+     * A tokenized media cannot be played from a plain player URL: it is dropped
+     * from the playlist, unless the integration supplies a token itself.
+     */
+    const _isPlayable = (item: MediaContainer): boolean => {
+        const global = item?.media?.metadata?.global;
+        if (!global?.media_id) return false;
+        return includeTokenized || !global.is_tokenized;
     };
+
+    /**
+     * Appends the medias that are not known yet, dropping the unplayable ones.
+     * Returns how many were actually added.
+     */
+    const _ingest = (incoming: MediaContainer[]): number => {
+        const known = new Set(medias.map(item => item.media.metadata.global.media_id));
+        let added = 0;
+        for (const item of incoming) {
+            const id = item?.media?.metadata?.global?.media_id;
+            if (!id || known.has(id)) continue;
+            known.add(id);
+            if (!_isPlayable(item)) {
+                skipped++;
+                if (debug) console.debug(`Media "${id}" skipped: tokenized.`);
+                continue;
+            }
+            medias.push(item);
+            added++;
+        }
+        return added;
+    };
+
+    /** True once the API has nothing left to return. */
+    const isExhausted = () => noMore || (apiTotal > 0 && fetched >= apiTotal);
+
+    /**
+     * Number of playable medias in the playlist. While loading, the announced
+     * size is corrected by the medias already dropped; it becomes exact once
+     * everything has been fetched.
+     */
+    const totalCount = () => isExhausted() ? medias.length : Math.max(apiTotal - skipped, medias.length);
+
+    const hasMore = () => !!sourceParams && !isExhausted();
 
     /** Fetches one page of medias, starting at the given item offset. */
     const _fetchPage = async (offset: number, size: number = pageSize) => {
@@ -340,21 +379,37 @@ export async function generatePlaylistPlayer(
     };
 
     if (providedMedias?.length) {
-        medias = _newMedias(providedMedias);
-        total = medias.length;
+        fetched = providedMedias.length;
+        _ingest(providedMedias);
+        apiTotal = medias.length;
+        noMore = true;
     } else if (sourceParams) {
-        const first = await _fetchPage(0);
-        if (first.errors) {
+        let page = await _fetchPage(0);
+        if (page.errors) {
             loadingMessage.textContent = labels.error;
             if (debug) {
-                console.error('Playlist could not be loaded:', first.errors);
+                console.error('Playlist could not be loaded:', page.errors);
                 console.groupEnd();
             }
-            return _errorController(first.errors);
+            return _errorController(page.errors);
         }
-        medias = _newMedias(first.medias);
-        playlistMetadata = first.metadata;
-        total = Math.max(Number(playlistMetadata?.size ?? 0) || 0, medias.length);
+        playlistMetadata = page.metadata;
+        apiTotal = Number(page.metadata?.size ?? 0) || 0;
+        fetched += page.medias.length;
+        if (!page.medias.length) noMore = true;
+        _ingest(page.medias);
+
+        // A first page made only of unplayable medias must not look like an empty playlist.
+        while (!medias.length && hasMore()) {
+            page = await _fetchPage(fetched);
+            if (page.errors) break;
+            if (!page.medias.length) {
+                noMore = true;
+                break;
+            }
+            fetched += page.medias.length;
+            _ingest(page.medias);
+        }
     } else {
         loadingMessage.textContent = labels.error;
         if (debug) console.groupEnd();
@@ -482,9 +537,9 @@ export async function generatePlaylistPlayer(
 
     /** Refreshes the counter and the visibility of the "load more" button. */
     const updateListState = () => {
-        const remaining = Math.max(0, total - medias.length);
+        const remaining = Math.max(0, totalCount() - medias.length);
         listCount.textContent = remaining > 0
-            ? `${medias.length} / ${total} ${labels.medias}`
+            ? `${medias.length} / ${totalCount()} ${labels.medias}`
             : `${medias.length} ${labels.medias}`;
         moreButton.style.display = remaining > 0 ? '' : 'none';
     };
@@ -526,7 +581,7 @@ export async function generatePlaylistPlayer(
         const global = media.metadata.global;
 
         if (info.title) infoTitle.textContent = global.name ?? '';
-        if (info.position) infoPosition.textContent = `${currentIndex + 1} / ${Math.max(total, medias.length)}`;
+        if (info.position) infoPosition.textContent = `${currentIndex + 1} / ${totalCount()}`;
         if (info.duration) infoDuration.textContent = _formatTime(global.duration);
         if (info.currentTime) infoCurrentTime.textContent = _formatTime(currentTime);
         if (info.releaseDate) infoDate.textContent = _formatDate(global.release_date, locale);
@@ -552,8 +607,6 @@ export async function generatePlaylistPlayer(
         });
     };
 
-    const hasMore = () => !!sourceParams && medias.length < total;
-
     const updateControls = () => {
         prevButton.disabled = !loop && currentIndex <= 0;
         nextButton.disabled = !loop && !hasMore() && currentIndex >= medias.length - 1;
@@ -571,25 +624,30 @@ export async function generatePlaylistPlayer(
         moreButton.disabled = true;
         moreButton.textContent = labels.loading;
 
-        loadingPage = _fetchPage(medias.length).then(page => {
-            if (page.errors) {
-                if (debug) console.error('Could not load more medias:', page.errors);
-                return false;
+        loadingPage = (async () => {
+            let added = 0;
+            // Keep asking while a page brings only unplayable medias.
+            while (!added && hasMore()) {
+                const page = await _fetchPage(fetched);
+                if (page.errors) {
+                    if (debug) console.error('Could not load more medias:', page.errors);
+                    return false;
+                }
+                if (!page.medias.length) {
+                    noMore = true;
+                    break;
+                }
+                fetched += page.medias.length;
+                if (page.metadata?.size) apiTotal = Number(page.metadata.size) || apiTotal;
+                added += _ingest(page.medias);
             }
-            const added = _newMedias(page.medias);
-            if (!added.length) {
-                // Nothing new came back: stop asking to avoid an endless loop.
-                total = medias.length;
-                if (debug) console.warn('No additional media returned, playlist considered complete.');
-                return false;
+            if (added) {
+                renderNewItems();
+                updateActiveItem();
+                if (debug) console.debug(`+${added} medias loaded (${medias.length}/${totalCount()}).`);
             }
-            medias.push(...added);
-            if (page.metadata?.size) total = Math.max(Number(page.metadata.size) || 0, medias.length);
-            renderNewItems();
-            updateActiveItem();
-            if (debug) console.debug(`+${added.length} medias loaded (${medias.length}/${total}).`);
-            return true;
-        }).catch(error => {
+            return added > 0;
+        })().catch(error => {
             if (debug) console.error('Could not load more medias:', error);
             return false;
         }).finally(() => {
@@ -751,12 +809,12 @@ export async function generatePlaylistPlayer(
         // only happens when a starting media was explicitly requested.
         if (found < 0 && hasMore()) {
             if (debug) console.debug(`Media "${wantedMediaId}" not in the first page, loading the whole playlist to locate it.`);
-            const everything = await _fetchPage(0, total);
-            const added = _newMedias(everything.medias);
-            if (added.length) {
-                medias.push(...added);
+            const everything = await _fetchPage(0, apiTotal || pageSize);
+            fetched = Math.max(fetched, everything.medias.length);
+            if (_ingest(everything.medias)) {
                 renderNewItems();
                 updateListState();
+                updateControls();
             }
             found = medias.findIndex(item => item.media.metadata.global.media_id === wantedMediaId);
         }
@@ -792,7 +850,7 @@ export async function generatePlaylistPlayer(
         getCurrentIndex: () => currentIndex,
         getCurrentMedia,
         getMedias: () => medias,
-        getTotal: () => Math.max(total, medias.length),
+        getTotal: totalCount,
         loadMore,
         getCurrentTime: () => currentTime,
         getShareUrl: (shareOptions) => {
