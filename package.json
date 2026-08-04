@@ -5,8 +5,12 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/index.global.js",
+  "jsdelivr": "dist/index.global.js",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "npm run build:lib && npm run build:global",
+    "build:lib": "tsup src/index.ts --format cjs,esm --dts",
+    "build:global": "tsup src/index.ts --format iife --global-name Streamlike --minify",
     "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

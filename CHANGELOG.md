@@ -9,6 +9,8 @@
 - Every generated element carries a CSS class built from the configurable `classPrefix` (`sl-playlist` by default); the default stylesheet uses single-class selectors and can be disabled with `injectStyles: false`.
 - Exposed `embedPlayerIframe`, the iframe creation helper extracted from `setResponsiveIframe` and shared with the playlist player (which therefore navigates without extra API calls).
 - Added the `demo/playlist-player.html` demo page.
+- Added a browser global build (`dist/index.global.js`, IIFE, minified, `Streamlike` global) so the SDK can be used from a `<script>` tag without ES modules. The `build` script now produces it alongside the CJS/ESM/types outputs, and the `unpkg` / `jsdelivr` package fields point to it.
+- Documented CDN usage (jsDelivr, unpkg) in the `README.md`, with the `demo/playlist-player-cdn.html` demo page loading the SDK without any install.
 
 ## [3.4.1] - 2026-07-30
 

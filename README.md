@@ -20,6 +20,45 @@ To install the library, use npm:
 npm install js-streamlike-sdk
 ```
 
+### Use it without npm (CDN)
+The SDK has **no runtime dependency**, so the published files are directly usable by a browser, straight from
+any npm CDN (jsDelivr, unpkg, esm.sh). No install, no build step.
+
+**As an ES module** — the recommended way:
+
+```html
+<div id="my-player"></div>
+
+<script type="module">
+    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.mjs';
+
+    await generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
+</script>
+```
+
+**As a classic script** — for pages that cannot use ES modules. The whole SDK is exposed on the `Streamlike`
+global:
+
+```html
+<div id="my-player"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.global.js"></script>
+<script>
+    Streamlike.generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
+</script>
+```
+
+unpkg serves the same files: replace the host with `https://unpkg.com/js-streamlike-sdk@3.5.0/…`.
+
+Two recommendations:
+
+- **Always pin an exact version.** With `@latest`, publishing a new release changes the behaviour of pages
+  you no longer control. `@3.5.0` is immutable; `@3` follows the minor releases of the 3.x branch.
+- Loading from a public CDN adds a third party to your pages. Integrations that cannot accept it should
+  install through npm and serve the SDK from their own domain.
+
+The `demo/playlist-player-cdn.html` page shows this integration, loaded from jsDelivr.
+
 ## Usage
 Here's how to use the main features of the library.
 
