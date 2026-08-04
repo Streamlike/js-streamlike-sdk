@@ -6,6 +6,7 @@ The Streamlike JS SDK is a TypeScript library designed to interact with the Stre
 - Fetching mediaParams and playlist data via the Streamlike API.
 - Generation of interactive thumbnails with different modes (animation, scrubbing).
 - Display of dynamic transcripts synchronized with video playback.
+- Playlist player with navigation, configurable information panel and shareable timecoded links.
 - Interactive trimmer for video segments.
 - Fully typed with TypeScript for a better development experience.
 
@@ -189,6 +190,104 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
 </script>
 ```
 
+### 5. Play a whole playlist
+Use the `generatePlaylistPlayer` function to play every media of an ordered playlist. It renders a player,
+previous / next controls, a clickable list of the medias and an information panel, and moves on to the next
+media when the current one ends.
+
+```html
+<div id="playlist-player"></div>
+
+<script type="module">
+    import { generatePlaylistPlayer } from 'js-streamlike-sdk';
+
+    const controller = await generatePlaylistPlayer('playlist-player', {
+        playlistId: 'your-playlist-id',
+
+        // Which information is displayed while a media is playing
+        info: {
+            title: true,          // default true
+            position: true,       // "3 / 12" – default true
+            duration: true,       // default true
+            currentTime: false,   // live playback position
+            playlistName: false,
+            description: false,
+            releaseDate: false,   // date part of release_date
+            releaseTime: false,   // time of day (hh:mm) of release_date
+            views: false,
+            keywords: false
+        },
+
+        // Which information is displayed on each entry of the list
+        listItem: {
+            thumbnail: true,
+            index: true,
+            title: true,
+            duration: true,
+            description: false,
+            // Optional: replace the static cover by an interactive preview
+            // interactiveThumbnail: { mode: 'animation' }
+        },
+
+        listPosition: 'right',   // 'right' | 'left' | 'bottom' | 'top'
+        autoNext: true,          // play the next media at the end of the current one
+        loop: false,             // go back to the first media after the last one
+        autostart: false,        // start playing right away
+        labels: { previous: 'Précédent', next: 'Suivant' },
+
+        onMediaChange: (media, index) => console.log('Now playing', index, media.metadata.global.name),
+        onPlaylistEnd: () => console.log('End of the playlist')
+    });
+
+    controller.next();                 // navigate programmatically
+    controller.playMedia('media-id', 65);
+</script>
+```
+
+#### Start on a given media at a given timecode (sharing)
+Pass `startMediaId` and `startTimecode` (seconds or `hh:mm:ss.mmm`) to open the player on a specific moment:
+
+```js
+await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    startMediaId: 'your-media-id',
+    startTimecode: '00:01:05',
+    autostart: true
+});
+```
+
+With `shareParams: { enabled: true }`, the player reads those values from the page URL
+(`?media=<media_id>&t=<seconds>` by default, the parameter names are configurable). The controller builds
+such a link for the media and position currently playing:
+
+```js
+const controller = await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    shareParams: { enabled: true }
+});
+
+controller.getShareUrl();                 // current media, current position
+controller.getShareUrl({ timecode: 0 });  // current media, from the beginning
+```
+
+#### Styling
+Every generated element carries a class prefixed with `classPrefix` (`sl-playlist` by default), so the whole
+UI can be restyled from your own CSS:
+
+| Class | Element |
+| --- | --- |
+| `sl-playlist` / `sl-playlist--list-right` | Root container and list placement modifier |
+| `sl-playlist-main` / `sl-playlist-player` | Player column and iframe wrapper |
+| `sl-playlist-controls` / `sl-playlist-button` / `sl-playlist-button-prev` / `sl-playlist-button-next` | Navigation controls |
+| `sl-playlist-info` | Information panel |
+| `sl-playlist-info-title` / `-playlist` / `-meta` / `-position` / `-duration` / `-currenttime` / `-date` / `-time` / `-views` / `-description` / `-keywords` / `-keyword` | Information items |
+| `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` | Playlist list |
+| `sl-playlist-item` (+ `is-active`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-duration` / `-item-description` | List entries |
+
+A default stylesheet is injected once per prefix, using single-class selectors so your own rules override it
+easily. Set `injectStyles: false` to start from a blank slate. Descriptions coming from the API are rendered
+as plain text (HTML markup is stripped).
+
 ## API Reference
 
 ### Core Utility
@@ -221,9 +320,11 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
 
 ### Player & Features
 - `setResponsiveIframe(id, target, options)`: Embeds a responsive player iframe into a target container.
+- `embedPlayerIframe(container, src, ratio, params, debug)`: Low-level helper creating a responsive player iframe from a ready-made player URL.
 - `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
 - `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
+- `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getCurrentTime`, `getShareUrl`, `destroy`).
 
 ### Important Types
 - `Media`: Represents a media entity containing metadata, statistics, and HTML5 sources.
@@ -236,6 +337,13 @@ Use the `generateTrimmer` function to create an interactive video segment trimme
 - `ThumbnailOptions`: Configuration options for interactive thumbnails (mode, fitMode).
 - `TranscriptOptions`: Configuration interface for interactive transcripts (wordsContainer, iframePlayer, autoScroll).
 - `TrimmerOptions`: Configuration interface for the video segment trimmer.
+- `PlaylistPlayerOptions`: Configuration interface for the playlist player (source, playback, display and share options).
+- `PlaylistPlayerInfoOptions`: Toggles for the information displayed during playback.
+- `PlaylistPlayerListItemOptions`: Toggles for the information displayed on each list entry.
+- `PlaylistPlayerLabels`: Texts used by the playlist player (localization).
+- `PlaylistPlayerController`: Controller returned by `generatePlaylistPlayer`.
+- `PlaylistListPosition`: Enum defining where the list is rendered (`right`, `left`, `bottom`, `top`).
+- `IframeParams`: Settings applied to the generated `<iframe>` (permissions, load callback).
 - `SortingParams`: Common sorting parameters for API requests.
 - `OrderByPlaylist`: Enum defining sorting fields for media within a playlist.
 - `OrderByPlaylists`: Enum defining sorting fields for playlists.
