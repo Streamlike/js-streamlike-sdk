@@ -31,12 +31,22 @@ export enum TypePlayerId {
 export interface IframeOptions {
     typePlayerId?: TypePlayerId;
     playerParams?: PlayerParams;
-    iframeParams?: {
-        allowfullscreen?: boolean;
-        allowautoplay?: boolean;
-        onLoad?: () => void;
-    };
+    iframeParams?: IframeParams;
     baseOptions?: BaseOptions;
+}
+
+/**
+ * Settings applied to the generated `<iframe>` element itself.
+ *
+ * Properties:
+ * - `allowfullscreen` (optional): Determines whether fullscreen mode is allowed.
+ * - `allowautoplay` (optional): Indicates whether autoplay of content is permitted.
+ * - `onLoad` (optional): A callback function to handle iframe load events.
+ */
+export interface IframeParams {
+    allowfullscreen?: boolean;
+    allowautoplay?: boolean;
+    onLoad?: () => void;
 }
 /**
  * Interface representing the parameters for a player configuration.

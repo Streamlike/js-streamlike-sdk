@@ -1,4 +1,15 @@
 # Changelog
+## [3.5.0] - 2026-08-03
+
+### New Features (Minor)
+- Introduced `generatePlaylistPlayer`, a playlist player that plays every media of an ordered playlist, with previous / next controls, a clickable media list and auto-advance at the end of a media.
+- Added `PlaylistPlayerOptions.info` and `PlaylistPlayerOptions.listItem` to choose which information (title, description, position, duration, current time, playlist name, release date, release time, views, keywords) is displayed during playback and in the list.
+- `info.releaseTime` displays the time of day (hours and minutes) taken from `release_date`, formatted with the `locale` option. Class: `{prefix}-info-time`.
+- Added deep-link support through `startMediaId` / `startTimecode` and `shareParams`, so a shared link can start on a given media at a given position. The returned controller exposes `getShareUrl()` to build such a link.
+- Every generated element carries a CSS class built from the configurable `classPrefix` (`sl-playlist` by default); the default stylesheet uses single-class selectors and can be disabled with `injectStyles: false`.
+- Exposed `embedPlayerIframe`, the iframe creation helper extracted from `setResponsiveIframe` and shared with the playlist player (which therefore navigates without extra API calls).
+- Added the `demo/playlist-player.html` demo page.
+
 ## [3.4.1] - 2026-07-30
 
 ### Fix
