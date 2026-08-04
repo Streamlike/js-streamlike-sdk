@@ -31,7 +31,8 @@ const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     error: 'Unable to load the playlist.',
     views: 'views',
     medias: 'medias',
-    more: 'Load more'
+    more: 'Load more',
+    secured: 'Secured media'
 };
 
 const DEFAULT_INFO: Required<PlaylistPlayerInfoOptions> = {
@@ -183,6 +184,10 @@ function _injectStyles(p: string): void {
 .${p}-item-duration { font-size: .75rem; opacity: .65; }
 .${p}-item-description { font-size: .75rem; opacity: .7; }
 .${p}-list-more { width: 100%; margin-top: .25rem; }
+.${p}-player-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+.${p}-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .8rem; border-radius: 6px; background: rgba(41, 60, 90, .1); }
+.${p}-notice-message { font-size: .9rem; }
+.${p}-item.is-locked .${p}-item-thumbnail { opacity: .55; }
 .${p}-message { padding: 1rem; text-align: center; opacity: .7; }
 @media (max-width: 720px) {
     .${p}--list-right, .${p}--list-left { flex-direction: column; }
@@ -257,7 +262,7 @@ export async function generatePlaylistPlayer(
         autoplayOnChange = true,
         autoNext = true,
         loop = false,
-        includeTokenized = false,
+        hideTokenized = true,
         showList = true,
         showControls = true,
         listPosition = PlaylistListPosition.Right,
@@ -299,6 +304,17 @@ export async function generatePlaylistPlayer(
     const main = _el('div', `${p}-main`);
     const playerBox = _el('div', `${p}-player`);
     main.appendChild(playerBox);
+
+    // Shown on a media that is locked or restricted, with a way out of it.
+    const notice = _el('div', `${p}-notice`);
+    const noticeMessage = _el('span', `${p}-notice-message`);
+    const noticeNext = _el('button', `${p}-button ${p}-notice-next`, labels.next);
+    noticeNext.type = 'button';
+    notice.appendChild(noticeMessage);
+    notice.appendChild(noticeNext);
+    notice.style.display = 'none';
+    main.appendChild(notice);
+
     container.appendChild(main);
 
     const loadingMessage = _el('div', `${p}-message`, labels.loading);
@@ -324,13 +340,18 @@ export async function generatePlaylistPlayer(
     } : null;
 
     /**
-     * A tokenized media cannot be played from a plain player URL: it is dropped
-     * from the playlist, unless the integration supplies a token itself.
+     * Tells how a media can be accessed:
+     * - `open`: nothing special, plays normally;
+     * - `password`: tokenized but password protected, the player prompts for it,
+     *   so the media stays playable;
+     * - `secured`: restricted by IP or referrer, playback is attempted and the
+     *   player answers a 404 when the restriction does not pass;
+     * - `locked`: tokenized without password, a plain player URL cannot play it.
      */
-    const _isPlayable = (item: MediaContainer): boolean => {
-        const global = item?.media?.metadata?.global;
-        if (!global?.media_id) return false;
-        return includeTokenized || !global.is_tokenized;
+    const _accessOf = (item: MediaContainer): 'open' | 'password' | 'secured' | 'locked' => {
+        const global = item.media.metadata.global;
+        if (global.is_tokenized) return global.has_password ? 'password' : 'locked';
+        return global.is_secured ? 'secured' : 'open';
     };
 
     /**
@@ -344,9 +365,9 @@ export async function generatePlaylistPlayer(
             const id = item?.media?.metadata?.global?.media_id;
             if (!id || known.has(id)) continue;
             known.add(id);
-            if (!_isPlayable(item)) {
+            if (hideTokenized && _accessOf(item) === 'locked') {
                 skipped++;
-                if (debug) console.debug(`Media "${id}" skipped: tokenized.`);
+                if (debug) console.debug(`Media "${id}" hidden: tokenized without password.`);
                 continue;
             }
             medias.push(item);
@@ -482,7 +503,10 @@ export async function generatePlaylistPlayer(
         const media = mediaContainer.media;
         const global = media.metadata.global;
 
+        const access = _accessOf(mediaContainer);
         const item = _el('li', `${p}-item`);
+        if (access === 'locked') item.classList.add('is-locked');
+        if (access === 'secured') item.classList.add('is-secured');
         item.dataset.mediaId = global.media_id;
         item.dataset.index = String(index);
 
@@ -610,6 +634,7 @@ export async function generatePlaylistPlayer(
     const updateControls = () => {
         prevButton.disabled = !loop && currentIndex <= 0;
         nextButton.disabled = !loop && !hasMore() && currentIndex >= medias.length - 1;
+        noticeNext.disabled = nextButton.disabled;
     };
 
     /**
@@ -678,28 +703,49 @@ export async function generatePlaylistPlayer(
         }
         const media = mediaContainer.media;
         const global = media.metadata.global;
+        const access = _accessOf(mediaContainer);
 
         currentIndex = index;
         currentTime = timecode;
         endHandled = false;
 
-        const params: PlayerParams = {
-            ...playerParams,
-            med_id: global.media_id,
-            events: true,
-            autostart: play
-        };
-        if (timecode > 0) params.tc = timecode;
-        else delete params.tc;
+        if (access === 'locked') {
+            // No player: a plain URL cannot play it. The cover stands in for the video.
+            playerIframe = null;
+            playerBox.innerHTML = '';
+            playerBox.style.overflow = 'hidden';
+            playerBox.style.aspectRatio = `${global.ratio || 16 / 9}`;
+            const cover = document.createElement('img');
+            cover.className = `${p}-player-cover`;
+            cover.src = media.metadata.customization?.cover?.thumbnailextralarge_url
+                ?? media.metadata.customization?.cover?.url ?? '';
+            cover.alt = global.name ?? '';
+            playerBox.appendChild(cover);
+        } else {
+            const params: PlayerParams = {
+                ...playerParams,
+                med_id: global.media_id,
+                events: true,
+                autostart: play
+            };
+            if (timecode > 0) params.tc = timecode;
+            else delete params.tc;
 
-        const src = buildUrl('/play', params, baseOptions);
-        playerIframe = embedPlayerIframe(
-            playerBox,
-            src,
-            global.ratio || 16 / 9,
-            {...iframeParams, id: `${p}-media-${global.media_id}`},
-            debug
-        );
+            const src = buildUrl('/play', params, baseOptions);
+            playerIframe = embedPlayerIframe(
+                playerBox,
+                src,
+                global.ratio || 16 / 9,
+                {...iframeParams, id: `${p}-media-${global.media_id}`},
+                debug
+            );
+        }
+
+        // A restricted media may answer a 404: keep an explicit way to move on.
+        const restricted = access === 'locked' || access === 'secured';
+        notice.style.display = restricted ? '' : 'none';
+        if (restricted) noticeMessage.textContent = labels.secured;
+        if (debug && restricted) console.debug(`Media "${global.media_id}" access: ${access}.`);
 
         updateInfo();
         updateActiveItem();
@@ -790,6 +836,7 @@ export async function generatePlaylistPlayer(
     prevButton.addEventListener('click', () => previous());
     nextButton.addEventListener('click', () => next());
     moreButton.addEventListener('click', () => loadMore());
+    noticeNext.addEventListener('click', () => next());
     updateListState();
 
     // --- Starting point (shared link support) ---

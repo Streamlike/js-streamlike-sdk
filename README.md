@@ -271,7 +271,7 @@ media when the current one ends.
         listPosition: 'right',   // 'right' | 'left' | 'bottom' | 'top'
         pageSize: 10,            // medias fetched per request
         autoNext: true,          // play the next media at the end of the current one
-        includeTokenized: false, // keep tokenized medias, which cannot be played as-is
+        hideTokenized: true,     // hide the medias that cannot be played
         loop: false,             // go back to the first media after the last one
         autostart: false,        // start playing right away
         labels: { previous: 'Précédent', next: 'Suivant' },
@@ -310,13 +310,30 @@ the player load the whole playlist at once to locate it — one extra request, o
 requested. And `listItem.interactiveThumbnail` downloads one storyboard file per entry as soon as it is
 rendered: keep it for short playlists, a few dozen entries at most.
 
-#### Tokenized medias
-A tokenized media cannot be played from a plain player URL, so it is **removed from the playlist**: it would
-otherwise sit in the list and fail as soon as the reader clicks it. The size announced by the API is
-corrected by the number of medias dropped, so the counter, the position and the paging stay consistent.
+#### Medias with restricted access
+Some medias cannot be played from a plain player URL. The player sorts them out:
 
-Set `includeTokenized: true` to keep them — only meaningful when your integration provides a token through
-`playerParams.sltoken`.
+| Media | Behaviour |
+| --- | --- |
+| Tokenized, no password | Cannot be played. Hidden by default (`hideTokenized`), otherwise its cover replaces the player, with the message and the *next* button. |
+| Tokenized, password protected | Played normally, the player prompts for the password. Never hidden. |
+| Secured by IP or referrer (`is_secured`) | Playback is attempted; the player answers a 404 when the restriction does not pass. The message and the *next* button are shown alongside. |
+
+With `hideTokenized: true` (the default), the hidden medias are removed from the list **and** from the
+counts: the size announced by the API is corrected by the number of medias dropped, so the counter, the
+position and the paging stay consistent.
+
+```js
+await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    hideTokenized: false,
+    labels: { secured: 'Média sécurisé', next: 'Vidéo suivante' }
+});
+```
+
+The message sits in `{prefix}-notice-message` and the button in `{prefix}-notice-next`, inside a
+`{prefix}-notice` block. The concerned list entries carry `is-locked` or `is-secured`, and the cover shown
+in place of the player is a `{prefix}-player-cover`.
 
 #### Start on a given media at a given timecode (sharing)
 Pass `startMediaId` and `startTimecode` (seconds or `hh:mm:ss.mmm`) to open the player on a specific moment:
@@ -356,7 +373,8 @@ UI can be restyled from your own CSS:
 | `sl-playlist-info` | Information panel |
 | `sl-playlist-info-title` / `-playlist` / `-meta` / `-position` / `-duration` / `-currenttime` / `-date` / `-time` / `-views` / `-description` / `-keywords` / `-keyword` | Information items |
 | `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` / `-list-more` | Playlist list and its "load more" button |
-| `sl-playlist-item` (+ `is-active`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-duration` / `-item-description` | List entries |
+| `sl-playlist-notice` / `-notice-message` / `-notice-next` / `sl-playlist-player-cover` | Restricted access block and stand-in cover |
+| `sl-playlist-item` (+ `is-active`, `is-locked`, `is-secured`) / `-item-button` / `-item-index` / `-item-thumbnail` / `-item-title` / `-item-duration` / `-item-description` | List entries |
 
 A default stylesheet is injected once per prefix, using single-class selectors so your own rules override it
 easily. Set `injectStyles: false` to start from a blank slate. Descriptions coming from the API are rendered

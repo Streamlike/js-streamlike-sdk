@@ -1,9 +1,12 @@
 # Changelog
-## [3.5.1] - 2026-08-04
+## [3.6.0] - 2026-08-04
 
-### Fix
-- `generatePlaylistPlayer` now drops the tokenized medias from the playlist: a plain player URL cannot play them, so they used to appear in the list and fail as soon as the reader clicked them. The size announced by the API is corrected by the number of medias dropped, so the counter, the position and the paging stay consistent.
-- Added `PlaylistPlayerOptions.includeTokenized` to keep them anyway, for integrations supplying their own token through `playerParams.sltoken`.
+### New Features (Minor)
+- `generatePlaylistPlayer` handles the medias whose access is restricted. A tokenized media without password cannot be played from a plain player URL: it used to appear in the list and fail as soon as the reader clicked it. `PlaylistPlayerOptions.hideTokenized` (true by default) removes it from the list and from the counts; set to `false`, its cover is shown in the list and in place of the player, with the `labels.secured` message and a button to jump to the next media.
+- A tokenized media protected by a password stays playable and is never hidden: the player prompts for the password.
+- A media secured by IP or referrer (`is_secured` without `is_tokenized`) stays playable — playback is attempted and the player answers a 404 when the restriction does not pass — and displays the same message and button.
+- Added `labels.secured` (default `Secured media`) and the `{prefix}-notice`, `{prefix}-notice-message`, `{prefix}-notice-next`, `{prefix}-player-cover` classes, plus `is-locked` / `is-secured` on the concerned list entries.
+- The offset used for paging is tracked separately from the kept medias, so hiding an entry no longer shifts the next page, and a page made only of hidden medias no longer ends the pagination.
 
 ## [3.5.0] - 2026-08-04
 
