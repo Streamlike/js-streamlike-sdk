@@ -1,10 +1,66 @@
 // path: src/playerParams/iframeParams.ts
-import {IframeOptions, TypePlayerId} from "../types/player";
+import {IframeOptions, IframeParams, TypePlayerId} from "../types/player";
 import { getWsMedia} from "../api/media";
 import {Media, MediaCallbackResponse} from "../types/api";
 import {buildUrl} from "../utils/api";
 import {MediaParams} from "../types/media";
 
+
+/**
+ * Creates a responsive player iframe and injects it into the given container.
+ * The container is emptied first and gets the requested aspect ratio.
+ *
+ * @param {HTMLElement} container - The element that will host the iframe.
+ * @param {string} src - The player URL to load.
+ * @param {number} ratio - The aspect ratio (width / height) applied to the container.
+ * @param {IframeParams & {id?: string}} [params] - Iframe settings (permissions, load callback, element id).
+ * @param {boolean} [debug=false] - Enables debug logging.
+ * @return {HTMLIFrameElement} The created iframe element.
+ */
+export function embedPlayerIframe(
+    container: HTMLElement,
+    src: string,
+    ratio: number,
+    params: IframeParams & { id?: string } = {},
+    debug: boolean = false
+): HTMLIFrameElement {
+    const {allowfullscreen = true, allowautoplay = true, onLoad, id} = params;
+
+    if (debug) {
+        console.groupCollapsed(`creatingIframe...`);
+        console.debug(`src:`, src);
+        console.debug(`currentRatio:`, ratio);
+    }
+
+    const iframePlayer = document.createElement("iframe");
+    iframePlayer.src = src;
+    if (id) iframePlayer.id = id;
+
+    const allowPermissions: string[] = [];
+    if (allowautoplay) allowPermissions.push('autoplay');
+    if (allowfullscreen) {
+        iframePlayer.allowFullscreen = true;
+        allowPermissions.push('fullscreen');
+    }
+    if (allowPermissions.length > 0) iframePlayer.setAttribute("allow", allowPermissions.join('; '));
+    if (onLoad) iframePlayer.addEventListener('load', onLoad);
+
+    iframePlayer.style.width = '100%';
+    iframePlayer.style.height = '100%';
+    iframePlayer.style.border = '0';
+    iframePlayer.style.overflow = 'hidden';
+
+    container.innerHTML = '';
+    container.style.overflow = "hidden";
+    container.style.aspectRatio = `${ratio}`;
+    container.appendChild(iframePlayer);
+
+    if (debug) {
+        console.debug('%c✔ iframe created', 'color: green', iframePlayer);
+        console.groupEnd();
+    }
+    return iframePlayer;
+}
 
 /**
  * Configures and embeds a responsive iframe into the specified target element.
@@ -34,44 +90,10 @@ export async function setResponsiveIframe(
 
     const {playerParams = {}, iframeParams, typePlayerId = TypePlayerId.media, baseOptions = {}} = options ?? {};
     const mediaParams: MediaParams = {}
-    const {allowfullscreen = true, allowautoplay = true, onLoad} = iframeParams || {};
     let ratio = 16 / 9;
 
-
     const createIframe = (src: string, currentRatio: number) => {
-        if (debug) {
-            console.groupCollapsed(`creatingIframe...`);
-            console.debug(`src:`, src);
-            console.debug(`currentRatio:`, currentRatio);
-        }
-        const iframePlayer = document.createElement("iframe");
-        iframePlayer.src = src;
-        iframePlayer.id = `media-${id}`;
-
-        const allowPermissions: string[] = [];
-        if (allowautoplay) allowPermissions.push('autoplay');
-        if (allowfullscreen) {
-            iframePlayer.allowFullscreen = true;
-            allowPermissions.push('fullscreen');
-        }
-        if (allowPermissions.length > 0) iframePlayer.setAttribute("allow", allowPermissions.join('; '));
-        if (onLoad) iframePlayer.addEventListener('load', onLoad);
-
-        iframePlayer.style.width = '100%';
-        iframePlayer.style.height = '100%';
-        iframePlayer.style.border = '0';
-        iframePlayer.style.overflow = 'hidden';
-
-        divParent.innerHTML = '';
-        divParent.style.overflow = "hidden";
-        divParent.style.aspectRatio = `${currentRatio}`;
-        divParent.appendChild(iframePlayer);
-
-        if (debug) {
-            console.debug('%c✔ iframe created', 'color: green', iframePlayer);
-
-            console.groupEnd();
-        }
+        embedPlayerIframe(divParent, src, currentRatio, {...iframeParams, id: `media-${id}`}, debug);
     };
 
     let endpoint = '/play';

@@ -1,5 +1,5 @@
 // --- SDK Version ---
-export const SDK_VERSION = "3.4.1";
+export const SDK_VERSION = "3.5.0";
 // console.log(`%cStreamlike SDK v${SDK_VERSION} loaded`, "color: #00ff00; font-weight: bold;");
 
 // --- API Methods ---
@@ -14,9 +14,10 @@ export {getWsRelated} from './api/related';
 export {generateThumbnail} from './features/preview';
 export {generateWords} from './features/transcripts';
 export {generateTrimmer} from './features/trimmer';
+export {generatePlaylistPlayer} from './features/playlistPlayer';
 
 // --- Player ---
-export {setResponsiveIframe} from './player/iframe';
+export {setResponsiveIframe, embedPlayerIframe} from './player/iframe';
 
 // Note: `generateWords` would be in `src/features/transcripts.ts` but was omitted for brevity as it's complex and unchanged.
 
@@ -28,5 +29,6 @@ export * from './types/media';
 export * from './types/misc';
 export * from './types/player';
 export * from './types/playlist';
+export * from './types/playlistPlayer';
 export * from './types/playlists';
 export * from './types/related';

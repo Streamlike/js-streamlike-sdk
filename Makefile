@@ -18,9 +18,10 @@ diff:
 	git diff main > mon_diff.patch
 	@echo "Diff exporté vers mon_diff.patch"
 
-# Compiler le TypeScript (une fois)
+# Compiler le TypeScript (une fois) : librairie (cjs/esm/types) + build global pour CDN
 build:
 	npx tsup src/index.ts --format cjs,esm --dts
+	npx tsup src/index.ts --format iife --global-name Streamlike --minify
 
 # Compiler le TypeScript en mode watch
 watch:
