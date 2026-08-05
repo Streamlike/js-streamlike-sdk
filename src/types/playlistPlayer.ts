@@ -147,6 +147,14 @@ export interface PlaylistPlayerLabels {
     medias?: string;
     /** Label of the button loading the next medias. @default "Load more" */
     more?: string;
+    /** Label of the fullscreen button. @default "Fullscreen" */
+    fullscreen?: string;
+    /** Label of the fullscreen button while in fullscreen. @default "Exit fullscreen" */
+    exitFullscreen?: string;
+    /** Label of the floating button while the information is shown. @default "Hide information" */
+    hideInfo?: string;
+    /** Label of the floating button while the video is alone. @default "Show information" */
+    showInfo?: string;
     /**
      * Message shown when a media cannot be played: missing token, or an IP /
      * referrer restriction that does not pass.
@@ -276,6 +284,35 @@ export interface PlaylistPlayerOptions {
      * @default true
      */
     showControls?: boolean;
+    /**
+     * Adds a fullscreen button that puts the whole player — media, information,
+     * controls and list — in fullscreen, and **keeps it there when the media
+     * changes**.
+     *
+     * That is the point of the option. The player's own fullscreen button acts
+     * inside the iframe, whose document is destroyed each time another media is
+     * loaded, so the browser leaves fullscreen at every change. Here the element
+     * put in fullscreen is the container, which survives the swap.
+     *
+     * Enabling it therefore hides the fullscreen button of the embedded player
+     * (`playerParams.fs` and `playerParams.fullscreen` are forced to `false`),
+     * so the only path offered is the one that holds.
+     *
+     * Not supported on iPhone, where Safari only knows how to put a native video
+     * element in fullscreen: the button is left out there.
+     * @default false
+     */
+    fullscreen?: boolean;
+    /**
+     * Key toggling the information while in fullscreen, so the media can be left
+     * alone on screen. Set to `false` to bind nothing.
+     *
+     * The shortcut only answers while the player holds the fullscreen, and only
+     * when the focus is in the page: a click inside the player sends the
+     * keystrokes to its iframe, out of reach of any page.
+     * @default "i"
+     */
+    toggleInfoKey?: string | false;
     /**
      * Where the list is rendered relative to the player.
      * @default PlaylistListPosition.Right
@@ -415,6 +452,29 @@ export interface PlaylistPlayerController extends CallbackResponse<PlaylistPlaye
      * Last playback position reported by the player, in seconds.
      */
     getCurrentTime: () => number;
+    /**
+     * Tells whether the player currently holds the fullscreen.
+     */
+    isFullscreen: () => boolean;
+    /**
+     * Enters or leaves fullscreen, or forces one of the two when `force` is
+     * given. Works whatever `options.fullscreen`, which only governs the button.
+     *
+     * Entering must be called from a user gesture (a click handler), otherwise
+     * the browser refuses it. Resolves to the state actually reached, so a
+     * refusal — an unsupported browser, a missing gesture — reads as `false`.
+     */
+    toggleFullscreen: (force?: boolean) => Promise<boolean>;
+    /**
+     * Tells whether the media is currently alone on screen.
+     */
+    isVideoOnly: () => boolean;
+    /**
+     * Hides everything but the media — information, controls and list — or
+     * brings it all back, and returns the state reached. Only shows in
+     * fullscreen, where the rules apply; leaving fullscreen resets it.
+     */
+    toggleVideoOnly: (force?: boolean) => boolean;
     /**
      * Builds a shareable URL pointing to the current media, at the current
      * position by default.

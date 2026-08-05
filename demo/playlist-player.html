@@ -31,6 +31,10 @@
         playlist, with previous / next controls and a clickable list. Use <em>Copy share link</em> to get a
         URL that reopens the page on the current media, at the current position.
     </p>
+    <p>
+        In fullscreen, a floating button over the media leaves the video alone on screen: move the pointer
+        over the player to bring it out, tap it twice on a touch screen, or press <code>i</code>.
+    </p>
     <a href="index.html" target="_self">Back</a>
 
     <form id="playlist-form">
@@ -67,6 +71,7 @@
         <label><input type="checkbox" id="loop"> Loop</label>
         <label><input type="checkbox" id="interactive-thumbnails"> Interactive thumbnails</label>
         <label><input type="checkbox" id="hide-tokenized" checked> Hide unplayable medias</label>
+        <label><input type="checkbox" id="fullscreen" checked> Fullscreen button (kept across medias)</label>
         <label for="page-size">Medias per page:</label>
         <input type="number" id="page-size" value="2" min="1" max="200" style="width:5rem;">
     </fieldset>
@@ -90,6 +95,7 @@
     const interactiveThumbsInput = document.getElementById('interactive-thumbnails');
     const pageSizeInput = document.getElementById('page-size');
     const hideTokenizedInput = document.getElementById('hide-tokenized');
+    const fullscreenInput = document.getElementById('fullscreen');
     const shareButton = document.getElementById('share-button');
     const shareFeedback = document.getElementById('share-feedback');
 
@@ -129,6 +135,8 @@
             loop: loopInput.checked,
             // décoché : les médias non lisibles restent visibles, avec un message
             hideTokenized: hideTokenizedInput.checked,
+            // le conteneur passe en plein écran, pas l'iframe : on y reste d'un média à l'autre
+            fullscreen: fullscreenInput.checked,
             listPosition: listPositionSelect.value,
             info: getInfoOptions(),
             listItem: {
@@ -166,7 +174,7 @@
         }
     });
 
-    [listPositionSelect, autoNextInput, loopInput, interactiveThumbsInput, pageSizeInput, hideTokenizedInput, infoOptions].forEach(element => {
+    [listPositionSelect, autoNextInput, loopInput, interactiveThumbsInput, pageSizeInput, hideTokenizedInput, fullscreenInput, infoOptions].forEach(element => {
         element.addEventListener('change', () => loadPlaylistPlayer(playlistInput.value));
     });
 

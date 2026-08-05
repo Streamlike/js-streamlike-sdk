@@ -23,6 +23,15 @@ const DEFAULT_PAGE_SIZE = 10;
 /** Remaining loaded medias below which the next page is fetched. */
 const DEFAULT_PREFETCH_THRESHOLD = 2;
 
+/** Key toggling the information while in fullscreen. */
+const DEFAULT_TOGGLE_INFO_KEY = 'i';
+
+/**
+ * How long the floating button stays out after a touch or a keystroke. A mouse
+ * does not use it: the button follows the pointer being over the player.
+ */
+const REVEAL_TIMEOUT = 3000;
+
 const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     previous: 'Previous',
     next: 'Next',
@@ -32,7 +41,11 @@ const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     views: 'views',
     medias: 'medias',
     more: 'Load more',
-    secured: 'Secured media'
+    secured: 'Secured media',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit fullscreen',
+    hideInfo: 'Hide information',
+    showInfo: 'Show information'
 };
 
 const DEFAULT_INFO: Required<PlaylistPlayerInfoOptions> = {
@@ -128,6 +141,35 @@ function _toPlainText(html?: string): string {
 }
 
 /**
+ * The fullscreen API of the browser, with the WebKit spelling Safari still
+ * needs. Returns null when an arbitrary element cannot be put in fullscreen —
+ * an iPhone, where only a native video element can, or a document where the
+ * permissions policy forbids it.
+ */
+function _fullscreenApi(): {
+    request: (element: Element) => Promise<unknown>;
+    exit: () => Promise<unknown>;
+    element: () => Element | null;
+    events: string[];
+} | null {
+    if (typeof document === 'undefined' || typeof Element === 'undefined') return null;
+
+    const doc = document as Document & Record<string, any>;
+    const proto = Element.prototype as Element & Record<string, any>;
+    const request = proto.requestFullscreen ?? proto.webkitRequestFullscreen;
+    const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+    const enabled = doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true;
+    if (!request || !exit || !enabled) return null;
+
+    return {
+        request: element => Promise.resolve(request.call(element)),
+        exit: () => Promise.resolve(exit.call(doc)),
+        element: () => doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null,
+        events: ['fullscreenchange', 'webkitfullscreenchange']
+    };
+}
+
+/**
  * Creates an element with a class and an optional text content.
  */
 function _el<K extends keyof HTMLElementTagNameMap>(
@@ -139,6 +181,50 @@ function _el<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
     if (text !== undefined) element.textContent = text;
     return element;
+}
+
+/**
+ * Rules applied while the player holds the fullscreen: the media takes the
+ * screen, the rest keeps its place around it, on a dark background since no page
+ * shows through any more.
+ *
+ * Emitted once per fullscreen spelling — a browser drops a whole rule as soon as
+ * one selector of the list is unknown to it, so `:fullscreen` and
+ * `:-webkit-full-screen` cannot share one.
+ */
+function _fullscreenStyles(p: string, root: string): string {
+    return `
+${root} { background: #000; color: #fff; gap: .5rem; padding: .5rem; }
+${root} .${p}-main { flex: 1 1 auto; min-height: 0; }
+${root} .${p}-list { max-height: 100%; min-height: 0; }
+${root} .${p}-items { max-height: none; min-height: 0; flex: 1 1 auto; }
+/* A list beside the player follows the height of the screen; above or below it,
+   it would eat the media instead, so it keeps a ceiling. */
+${root}.${p}--list-bottom .${p}-items, ${root}.${p}--list-top .${p}-items { max-height: 30vh; flex: 0 1 auto; }
+${root} .${p}-item-button:hover { background: rgba(255, 255, 255, .12); }
+${root} .${p}-item.is-active > .${p}-item-button { background: rgba(255, 255, 255, .22); }
+${root} .${p}-notice { background: rgba(255, 255, 255, .14); }
+/* embedPlayerIframe sets the aspect ratio as an inline style, which only an
+   important declaration can neutralise: here the media follows the screen. */
+${root} .${p}-player { flex: 1 1 auto; min-height: 0; height: auto !important; aspect-ratio: auto !important; }
+
+/* Floating button, over the media rather than beside it. It keeps receiving
+   pointer events while transparent: on a touch screen it is its own target, a
+   first tap bringing it out and the next one acting. */
+${root} .${p}-main { position: relative; }
+${root} .${p}-toggle-info {
+    position: absolute; top: .75rem; right: .75rem; z-index: 5;
+    display: inline-flex; align-items: center; font: inherit; line-height: 1.2;
+    color: #fff; background: rgba(0, 0, 0, .65); border: 0; border-radius: 999px;
+    padding: .5rem .9rem; cursor: pointer; opacity: 0; transition: opacity .15s ease;
+}
+${root}.is-revealed .${p}-toggle-info, ${root} .${p}-toggle-info:focus-visible { opacity: 1; }
+/* The video alone. The notice stays: it carries the way out of a media that
+   cannot be played. */
+${root}.is-video-only .${p}-info,
+${root}.is-video-only .${p}-controls,
+${root}.is-video-only .${p}-list { display: none; }
+`;
 }
 
 /**
@@ -192,10 +278,14 @@ function _injectStyles(p: string): void {
 .${p}-notice-message { font-size: .9rem; margin: .25rem .5rem; }
 .${p}-item.is-locked .${p}-item-thumbnail { opacity: .55; }
 .${p}-message { padding: 1rem; text-align: center; opacity: .7; }
+/* Only meaningful over a media taking the screen. */
+.${p}-toggle-info { display: none; }
 @media (max-width: 720px) {
     .${p}--list-right, .${p}--list-left { flex-direction: column; }
     .${p}--list-right .${p}-list, .${p}--list-left .${p}-list { flex: 0 0 auto; width: 100%; }
 }
+${_fullscreenStyles(p, `.${p}:fullscreen`)}
+${_fullscreenStyles(p, `.${p}:-webkit-full-screen`)}
 `;
     document.head.appendChild(style);
 }
@@ -223,6 +313,10 @@ function _errorController(errors: string): PlaylistPlayerController {
         getTotal: () => 0,
         loadMore: () => Promise.resolve(false),
         getCurrentTime: () => 0,
+        isFullscreen: () => false,
+        toggleFullscreen: () => Promise.resolve(false),
+        isVideoOnly: () => false,
+        toggleVideoOnly: () => false,
         getShareUrl: () => '',
         destroy: noop
     };
@@ -268,6 +362,7 @@ export async function generatePlaylistPlayer(
         hideTokenized = true,
         showList = true,
         showControls = true,
+        fullscreen = false,
         listPosition = PlaylistListPosition.Right,
         classPrefix = DEFAULT_PREFIX,
         injectStyles = true,
@@ -282,6 +377,9 @@ export async function generatePlaylistPlayer(
 
     const pageSize = Math.max(1, Number(options.pageSize ?? options.playlistParams?.pagesize ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE);
     const prefetchThreshold = Math.max(0, options.prefetchThreshold ?? DEFAULT_PREFETCH_THRESHOLD);
+    const toggleInfoKey = options.toggleInfoKey === false
+        ? null
+        : String(options.toggleInfoKey ?? DEFAULT_TOGGLE_INFO_KEY).toLowerCase();
 
     const debug = options.debug ?? baseOptions.debug ?? false;
     const p = classPrefix;
@@ -290,6 +388,21 @@ export async function generatePlaylistPlayer(
     const labels: Required<PlaylistPlayerLabels> = {...DEFAULT_LABELS, ...options.labels};
     const shareMediaParam = shareParams.media || 'media';
     const shareTimecodeParam = shareParams.timecode || 't';
+
+    // Null where an element cannot be put in fullscreen (an iPhone): the button
+    // is then left out rather than offered and refused.
+    const fsApi = _fullscreenApi();
+    const withFullscreen = fullscreen && !!fsApi;
+    if (fullscreen && !fsApi && debug) {
+        console.warn('Fullscreen is not available in this browser, the button is left out.');
+    }
+
+    // Our fullscreen holds the container, which survives a media change, where
+    // the player's own button holds the iframe document, destroyed at every
+    // change. Keeping both would offer a path that drops out of fullscreen.
+    const effectivePlayerParams: PlayerParams = withFullscreen
+        ? {...playerParams, fs: false, fullscreen: false}
+        : playerParams;
 
     if (debug) {
         console.groupCollapsed(`[generatePlaylistPlayer] ${playlistId ?? viewId ?? companyId ?? 'medias'}`);
@@ -307,6 +420,12 @@ export async function generatePlaylistPlayer(
     const main = _el('div', `${p}-main`);
     const playerBox = _el('div', `${p}-player`);
     main.appendChild(playerBox);
+
+    // Floats over the media in fullscreen, to leave the video alone on screen.
+    const toggleInfoButton = _el('button', `${p}-toggle-info`, labels.hideInfo);
+    toggleInfoButton.type = 'button';
+    toggleInfoButton.setAttribute('aria-pressed', 'false');
+    if (withFullscreen) main.appendChild(toggleInfoButton);
 
     // Shown on a media that is locked or restricted, with a way out of it.
     const notice = _el('div', `${p}-notice`);
@@ -485,13 +604,16 @@ export async function generatePlaylistPlayer(
     const controls = _el('div', `${p}-controls`);
     const prevButton = _el('button', `${p}-button ${p}-button-prev`, labels.previous);
     const nextButton = _el('button', `${p}-button ${p}-button-next`, labels.next);
+    const fullscreenButton = _el('button', `${p}-button ${p}-button-fullscreen`, labels.fullscreen);
     prevButton.type = 'button';
     nextButton.type = 'button';
+    fullscreenButton.type = 'button';
     if (showControls) {
         controls.appendChild(prevButton);
         controls.appendChild(nextButton);
-        main.appendChild(controls);
     }
+    if (withFullscreen) controls.appendChild(fullscreenButton);
+    if (controls.childElementCount) main.appendChild(controls);
 
     // --- List ---
     const listBox = _el('div', `${p}-list`);
@@ -671,6 +793,71 @@ export async function generatePlaylistPlayer(
         });
     };
 
+    const isFullscreen = (): boolean => !!fsApi && fsApi.element() === container;
+
+    /**
+     * Enters or leaves fullscreen. The media keeps playing across a change of
+     * media, since the element held is the container rather than the iframe.
+     */
+    const toggleFullscreen = async (force?: boolean): Promise<boolean> => {
+        if (!fsApi) return false;
+        const wanted = force ?? !isFullscreen();
+        if (wanted === isFullscreen()) return wanted;
+        try {
+            if (wanted) await fsApi.request(container);
+            else await fsApi.exit();
+        } catch (error) {
+            // Refused: no user gesture behind the call, or a policy forbids it.
+            if (debug) console.warn('Fullscreen request refused:', error);
+        }
+        return isFullscreen();
+    };
+
+    // --- Video alone on screen ---
+    let videoOnly = false;
+    let revealed = false;
+    let revealTimer = 0;
+    let touchInteraction = false;
+
+    /**
+     * Brings the floating button out. A delay is given after a touch or a
+     * keystroke, where nothing else would ever hide it again.
+     */
+    const setRevealed = (value: boolean, autoHide: number = 0) => {
+        revealed = value;
+        container.classList.toggle('is-revealed', value);
+        if (typeof window !== 'undefined') window.clearTimeout(revealTimer);
+        if (value && autoHide && typeof window !== 'undefined') {
+            revealTimer = window.setTimeout(() => setRevealed(false), autoHide);
+        }
+    };
+
+    const syncToggleInfoButton = () => {
+        toggleInfoButton.textContent = videoOnly ? labels.showInfo : labels.hideInfo;
+        toggleInfoButton.setAttribute('aria-pressed', String(videoOnly));
+    };
+
+    /** Hides everything but the media, or brings it all back. */
+    const toggleVideoOnly = (force?: boolean): boolean => {
+        videoOnly = force ?? !videoOnly;
+        container.classList.toggle('is-video-only', videoOnly);
+        syncToggleInfoButton();
+        if (debug) console.debug(`Video only: ${videoOnly}.`);
+        return videoOnly;
+    };
+
+    /** Keeps the button in line with the state, which the reader can leave with Escape. */
+    const syncFullscreenState = () => {
+        const active = isFullscreen();
+        fullscreenButton.textContent = active ? labels.exitFullscreen : labels.fullscreen;
+        fullscreenButton.setAttribute('aria-pressed', String(active));
+        // Leaving fullscreen puts the information back: the next one starts whole.
+        if (!active) {
+            toggleVideoOnly(false);
+            setRevealed(false);
+        }
+    };
+
     const updateControls = () => {
         prevButton.disabled = !loop && currentIndex <= 0;
         nextButton.disabled = !loop && !hasMore() && currentIndex >= medias.length - 1;
@@ -750,7 +937,7 @@ export async function generatePlaylistPlayer(
         endHandled = false;
 
         const params: PlayerParams = {
-            ...playerParams,
+            ...effectivePlayerParams,
             med_id: global.media_id,
             events: true,
             autostart: play
@@ -912,6 +1099,48 @@ export async function generatePlaylistPlayer(
     nextButton.addEventListener('click', () => next());
     moreButton.addEventListener('click', () => loadMore());
     noticeNext.addEventListener('click', () => next());
+    fullscreenButton.addEventListener('click', () => toggleFullscreen());
+    fsApi?.events.forEach(event => document.addEventListener(event, syncFullscreenState));
+
+    // A mouse over the player brings the button out. The pointer then lives in a
+    // cross-origin iframe, which sends us no move: entering and leaving the
+    // container are the only two moments we hear about, and they are enough.
+    container.addEventListener('mouseenter', () => {
+        if (isFullscreen()) setRevealed(true);
+    });
+    container.addEventListener('mouseleave', () => setRevealed(false));
+    toggleInfoButton.addEventListener('focus', () => setRevealed(true));
+
+    toggleInfoButton.addEventListener('touchstart', () => {
+        touchInteraction = true;
+    }, {passive: true});
+    toggleInfoButton.addEventListener('pointerdown', event => {
+        touchInteraction = (event as PointerEvent).pointerType !== 'mouse';
+    });
+    toggleInfoButton.addEventListener('click', () => {
+        if (touchInteraction) {
+            // No hover on a touch screen: the first tap only brings the button
+            // out, the next one acts.
+            const acting = revealed;
+            setRevealed(true, REVEAL_TIMEOUT);
+            if (!acting) return;
+        }
+        toggleVideoOnly();
+    });
+
+    /** Shortcut, only while the player holds the fullscreen. */
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (!toggleInfoKey || !isFullscreen()) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key?.toLowerCase() !== toggleInfoKey) return;
+        const target = event.target as HTMLElement | null;
+        if (target?.isContentEditable || /^(input|textarea|select)$/i.test(target?.tagName ?? '')) return;
+        event.preventDefault();
+        toggleVideoOnly();
+        setRevealed(true, REVEAL_TIMEOUT);
+    };
+    if (typeof document !== 'undefined') document.addEventListener('keydown', onKeyDown);
+
     updateListState();
 
     // --- Starting point (shared link support) ---
@@ -975,6 +1204,10 @@ export async function generatePlaylistPlayer(
         getTotal: totalCount,
         loadMore,
         getCurrentTime: () => currentTime,
+        isFullscreen,
+        toggleFullscreen,
+        isVideoOnly: () => videoOnly,
+        toggleVideoOnly,
         getShareUrl: (shareOptions) => {
             const href = typeof window !== 'undefined' ? window.location.href : '';
             if (!shareOptions?.url && !href) return '';
@@ -993,6 +1226,12 @@ export async function generatePlaylistPlayer(
         },
         destroy: () => {
             window.removeEventListener('message', onPlayerMessage);
+            fsApi?.events.forEach(event => document.removeEventListener(event, syncFullscreenState));
+            document.removeEventListener('keydown', onKeyDown);
+            window.clearTimeout(revealTimer);
+            // The container stays in the page, so leaving it in fullscreen would
+            // leave the reader in front of an empty screen.
+            if (isFullscreen()) fsApi?.exit().catch(() => undefined);
             container.innerHTML = '';
             container.classList.remove(...rootClasses);
             playerIframe = null;

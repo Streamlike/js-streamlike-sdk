@@ -34,13 +34,13 @@
     <h2>The two integration modes</h2>
     <p>ES module — the recommended one, used by this very page:</p>
     <pre><code>&lt;script type="module"&gt;
-    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.mjs';
+    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.mjs';
 
     await generatePlaylistPlayer('my-player', { playlistId: 'c4da86fddd8f0ada' });
 &lt;/script&gt;</code></pre>
 
     <p>Classic script — for pages that cannot use ES modules; everything lands on the <code>Streamlike</code> global:</p>
-    <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.global.js"&gt;&lt;/script&gt;
+    <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.global.js"&gt;&lt;/script&gt;
 &lt;script&gt;
     Streamlike.generatePlaylistPlayer('my-player', { playlistId: 'c4da86fddd8f0ada' });
 &lt;/script&gt;</code></pre>
@@ -49,7 +49,7 @@
 <script type="module">
     // Always pin an exact version in production: @latest would push your future
     // releases onto pages you no longer control.
-    const SDK_VERSION = '3.5.0';
+    const SDK_VERSION = '3.8.0';
     const SDK_URL = `https://cdn.jsdelivr.net/npm/js-streamlike-sdk@${SDK_VERSION}/dist/index.mjs`;
 
     const container = document.getElementById('playlist-player-container');
