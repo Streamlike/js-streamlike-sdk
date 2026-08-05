@@ -30,7 +30,7 @@ any npm CDN (jsDelivr, unpkg, esm.sh). No install, no build step.
 <div id="my-player"></div>
 
 <script type="module">
-    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.mjs';
+    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.mjs';
 
     await generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
 </script>
@@ -42,18 +42,18 @@ global:
 ```html
 <div id="my-player"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.5.0/dist/index.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.global.js"></script>
 <script>
     Streamlike.generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
 </script>
 ```
 
-unpkg serves the same files: replace the host with `https://unpkg.com/js-streamlike-sdk@3.5.0/…`.
+unpkg serves the same files: replace the host with `https://unpkg.com/js-streamlike-sdk@3.8.0/…`.
 
 Two recommendations:
 
 - **Always pin an exact version.** With `@latest`, publishing a new release changes the behaviour of pages
-  you no longer control. `@3.5.0` is immutable; `@3` follows the minor releases of the 3.x branch.
+  you no longer control. `@3.8.0` is immutable; `@3` follows the minor releases of the 3.x branch.
 - Loading from a public CDN adds a third party to your pages. Integrations that cannot accept it should
   install through npm and serve the SDK from their own domain.
 
@@ -273,6 +273,7 @@ media when the current one ends.
 
         listPosition: 'right',   // 'right' | 'left' | 'bottom' | 'top'
         pageSize: 10,            // medias fetched per request
+        fullscreen: false,       // fullscreen button, kept across medias
         autoNext: true,          // play the next media at the end of the current one
         hideTokenized: true,     // hide the medias that cannot be played
         loop: false,             // go back to the first media after the last one
@@ -318,6 +319,30 @@ Two things to keep in mind on large playlists. A shared link pointing to a media
 the player load the whole playlist at once to locate it — one extra request, only when a starting media is
 requested. And `listItem.interactiveThumbnail` downloads one storyboard file per entry as soon as it is
 rendered: keep it for short playlists, a few dozen entries at most.
+
+#### Only the video, in fullscreen
+In fullscreen, a floating button over the media hides the information, the controls and the list, leaving
+the video alone on screen — and brings them back. It is transparent until the pointer is over the player,
+and a touch or the keyboard shortcut brings it out for three seconds.
+
+```js
+await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    fullscreen: true,
+    toggleInfoKey: 'i',   // false binds nothing
+    labels: { hideInfo: 'Masquer les infos', showInfo: 'Afficher les infos' }
+});
+```
+
+The button carries `{prefix}-toggle-info`, and the container gains `is-video-only` while the video is alone,
+`is-revealed` while the button shows — both restylable. The restricted-access notice stays visible in that
+mode: it carries the only way out of a media that cannot be played. `isVideoOnly()` and
+`toggleVideoOnly(force?)` drive the same thing from the controller.
+
+Two limits worth knowing. On a touch screen there is no hover, so the button is its own target: a first tap
+brings it out, the next one acts — the media sits in a cross-origin iframe, which swallows every tap meant
+for the page. And the shortcut only answers while the focus is in the page: a click inside the player sends
+the keystrokes to its iframe, out of reach.
 
 #### Medias with restricted access
 Some medias cannot be played from a plain player URL. The player sorts them out:
@@ -381,6 +406,33 @@ controller.getShareUrl();                 // current media, current position
 controller.getShareUrl({ timecode: 0 });  // current media, from the beginning
 ```
 
+#### Staying in fullscreen from one media to the next
+The fullscreen button of the embedded player acts on the iframe, whose document is destroyed every time
+another media is loaded — so the browser leaves fullscreen at each change, and the reader has to ask for it
+again. `fullscreen: true` adds a button of its own, which puts the **container** in fullscreen instead:
+
+```js
+await generatePlaylistPlayer('playlist-player', {
+    playlistId: 'your-playlist-id',
+    fullscreen: true,
+    labels: { fullscreen: 'Plein écran', exitFullscreen: 'Quitter le plein écran' }
+});
+```
+
+The container survives the swap of the iframe, so playback goes on across a media change, whether it comes
+from *auto next*, the controls or a click in the list — all of which stay on screen and are styled for it
+(`{prefix}:fullscreen`, dark background, the media taking the space left).
+
+The option also hides the player's own fullscreen button (`playerParams.fs` and `playerParams.fullscreen`
+are forced to `false`): leaving it in place would offer a second path, the one that drops out at every
+change. That fullscreen cannot be caught and transferred from the outside — the click happens in a
+cross-origin iframe, so the page holds no user activation and the browser refuses the request.
+
+It is left out on iPhone, where Safari can only put a native video element in fullscreen; there the player
+keeps its own button. The controller exposes `isFullscreen()` and `toggleFullscreen(force?)` for a custom
+interface — entering must be called from a user gesture, and the promise resolves to the state actually
+reached, so a refusal reads as `false`.
+
 #### Styling
 Every generated element carries a class prefixed with `classPrefix` (`sl-playlist` by default), so the whole
 UI can be restyled from your own CSS:
@@ -389,7 +441,7 @@ UI can be restyled from your own CSS:
 | --- | --- |
 | `sl-playlist` / `sl-playlist--list-right` | Root container and list placement modifier |
 | `sl-playlist-main` / `sl-playlist-player` | Player column and iframe wrapper |
-| `sl-playlist-controls` / `sl-playlist-button` / `sl-playlist-button-prev` / `sl-playlist-button-next` | Navigation controls |
+| `sl-playlist-controls` / `sl-playlist-button` / `sl-playlist-button-prev` / `sl-playlist-button-next` / `-button-fullscreen` | Navigation controls |
 | `sl-playlist-info` | Information panel |
 | `sl-playlist-info-title` / `-playlist` / `-meta` / `-position` / `-duration` / `-currenttime` / `-date` / `-time` / `-views` / `-description` / `-keywords` / `-keyword` | Information items |
 | `sl-playlist-list` / `-list-header` / `-list-title` / `-list-count` / `-items` / `-list-more` | Playlist list and its "load more" button |
@@ -436,7 +488,7 @@ as plain text (HTML markup is stripped).
 - `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
 - `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
-- `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `loadMore`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getTotal`, `getCurrentTime`, `getShareUrl`, `destroy`).
+- `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `loadMore`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getTotal`, `getCurrentTime`, `isFullscreen`, `toggleFullscreen`, `getShareUrl`, `destroy`).
 
 ### Important Types
 - `Media`: Represents a media entity containing metadata, statistics, and HTML5 sources.

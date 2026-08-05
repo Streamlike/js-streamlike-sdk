@@ -1,4 +1,18 @@
 # Changelog
+## [3.8.0] - 2026-08-05
+
+### New Features (Minor)
+- `PlaylistPlayerOptions.fullscreen` (false by default) adds a fullscreen button to the playlist player, and playback **stays in fullscreen when the media changes**. The element put in fullscreen is the container, which survives the swap of the iframe, where the player's own button holds the iframe document, destroyed at every change — hence the exit at each media until now.
+- The option hides the fullscreen button of the embedded player (`playerParams.fs` and `playerParams.fullscreen` forced to `false`), so the only path offered is the one that holds. That fullscreen cannot be caught from the outside: the click happens in a cross-origin iframe, the page holds no user activation, and the browser refuses the request.
+- Added `labels.fullscreen` / `labels.exitFullscreen` (default `Fullscreen` / `Exit fullscreen`), the `{prefix}-button-fullscreen` class, and the `{prefix}:fullscreen` rules — dark background, the media taking the space left, the list following the height of the screen beside the player or capped above and below it.
+- The controller gained `isFullscreen()` and `toggleFullscreen(force?)`, for a custom interface. Entering must be called from a user gesture; the promise resolves to the state actually reached, so a refusal reads as `false`.
+- The button is left out where an arbitrary element cannot be put in fullscreen — an iPhone, or a document whose permissions policy forbids it — rather than offered and refused.
+- A floating button over the media leaves the video alone on screen, hiding the information, the controls and the list (`{prefix}-toggle-info`, `is-video-only` on the container). It stays out of the way: transparent until the pointer is over the player, brought out for three seconds by a touch or the shortcut. On a touch screen the button is its own target — a first tap brings it out, the next one acts — since a hover does not exist there and the media sits in a cross-origin iframe that swallows the taps meant for the page.
+- `PlaylistPlayerOptions.toggleInfoKey` (default `i`, `false` to bind nothing) toggles the same thing from the keyboard, only while the player holds the fullscreen. Added `labels.hideInfo` / `labels.showInfo` and the controller methods `isVideoOnly()` / `toggleVideoOnly(force?)`. Leaving fullscreen brings the information back.
+
+### Fix
+- `SDK_VERSION` and the `VERSION` file were left at `3.6.0` while `package.json` moved to `3.8.0`: the SDK announced a version two releases behind. The three are aligned again.
+
 ## [3.7.0] - 2026-08-04
 
 ### New Features (Minor)
