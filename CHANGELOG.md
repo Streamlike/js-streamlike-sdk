@@ -1,4 +1,10 @@
 # Changelog
+## [3.8.1] - 2026-08-05
+
+### Fix
+- The floating button of the fullscreen owed its visibility to the injected stylesheet alone: an integration styling the player itself, or passing `injectStyles: false`, saw it sitting unstyled under the media outside fullscreen, where a click did nothing. Its visibility now follows the fullscreen state from the code, and the video-only mode hides the information, the controls and the list on the elements themselves. Both work with or without the default stylesheet; the `is-video-only` and `is-revealed` classes stay for whatever else they should carry.
+- The default stylesheet is stamped with a version. A sheet left in the page by another version of the SDK used to be kept on its id alone, silently dropping the newer rules; it is replaced instead.
+
 ## [3.8.0] - 2026-08-05
 
 ### New Features (Minor)
