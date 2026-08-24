@@ -30,7 +30,7 @@ any npm CDN (jsDelivr, unpkg, esm.sh). No install, no build step.
 <div id="my-player"></div>
 
 <script type="module">
-    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.mjs';
+    import { generatePlaylistPlayer } from 'https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.1/dist/index.mjs';
 
     await generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
 </script>
@@ -42,18 +42,18 @@ global:
 ```html
 <div id="my-player"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.0/dist/index.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-streamlike-sdk@3.8.1/dist/index.global.js"></script>
 <script>
     Streamlike.generatePlaylistPlayer('my-player', { playlistId: 'your-playlist-id' });
 </script>
 ```
 
-unpkg serves the same files: replace the host with `https://unpkg.com/js-streamlike-sdk@3.8.0/…`.
+unpkg serves the same files: replace the host with `https://unpkg.com/js-streamlike-sdk@3.8.1/…`.
 
 Two recommendations:
 
 - **Always pin an exact version.** With `@latest`, publishing a new release changes the behaviour of pages
-  you no longer control. `@3.8.0` is immutable; `@3` follows the minor releases of the 3.x branch.
+  you no longer control. `@3.8.1` is immutable; `@3` follows the minor releases of the 3.x branch.
 - Loading from a public CDN adds a third party to your pages. Integrations that cannot accept it should
   install through npm and serve the SDK from their own domain.
 
@@ -335,7 +335,9 @@ await generatePlaylistPlayer('playlist-player', {
 ```
 
 The button carries `{prefix}-toggle-info`, and the container gains `is-video-only` while the video is alone,
-`is-revealed` while the button shows — both restylable. The restricted-access notice stays visible in that
+`is-revealed` while the button shows — both restylable. Neither the button appearing only in fullscreen nor
+the hiding itself depends on the default stylesheet, so an integration that styles the player on its own, or
+passes `injectStyles: false`, gets the same behaviour. The restricted-access notice stays visible in that
 mode: it carries the only way out of a media that cannot be played. `isVideoOnly()` and
 `toggleVideoOnly(force?)` drive the same thing from the controller.
 

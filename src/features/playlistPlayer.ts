@@ -32,6 +32,12 @@ const DEFAULT_TOGGLE_INFO_KEY = 'i';
  */
 const REVEAL_TIMEOUT = 3000;
 
+/**
+ * Stamped on the injected stylesheet, so a sheet left by another version of the
+ * SDK in the same page is replaced instead of silently kept.
+ */
+const SDK_STYLES_VERSION = '3.8.1';
+
 const DEFAULT_LABELS: Required<PlaylistPlayerLabels> = {
     previous: 'Previous',
     next: 'Next',
@@ -219,11 +225,6 @@ ${root} .${p}-toggle-info {
     padding: .5rem .9rem; cursor: pointer; opacity: 0; transition: opacity .15s ease;
 }
 ${root}.is-revealed .${p}-toggle-info, ${root} .${p}-toggle-info:focus-visible { opacity: 1; }
-/* The video alone. The notice stays: it carries the way out of a media that
-   cannot be played. */
-${root}.is-video-only .${p}-info,
-${root}.is-video-only .${p}-controls,
-${root}.is-video-only .${p}-list { display: none; }
 `;
 }
 
@@ -233,10 +234,16 @@ ${root}.is-video-only .${p}-list { display: none; }
  */
 function _injectStyles(p: string): void {
     const styleId = `${p}-default-styles`;
-    if (document.getElementById(styleId)) return;
+    // A sheet already carrying that id may come from another version of the SDK
+    // loaded in the same page. Skipping on the id alone would leave its rules in
+    // place and silently drop ours, so the version is checked too.
+    const existing = document.getElementById(styleId);
+    if (existing?.getAttribute('data-sl-version') === SDK_STYLES_VERSION) return;
+    existing?.remove();
 
     const style = document.createElement('style');
     style.id = styleId;
+    style.setAttribute('data-sl-version', SDK_STYLES_VERSION);
     style.textContent = `
 .${p}, .${p} * { box-sizing: border-box; }
 .${p} { display: flex; gap: 1rem; width: 100%; align-items: stretch; }
@@ -278,8 +285,6 @@ function _injectStyles(p: string): void {
 .${p}-notice-message { font-size: .9rem; margin: .25rem .5rem; }
 .${p}-item.is-locked .${p}-item-thumbnail { opacity: .55; }
 .${p}-message { padding: 1rem; text-align: center; opacity: .7; }
-/* Only meaningful over a media taking the screen. */
-.${p}-toggle-info { display: none; }
 @media (max-width: 720px) {
     .${p}--list-right, .${p}--list-left { flex-direction: column; }
     .${p}--list-right .${p}-list, .${p}--list-left .${p}-list { flex: 0 0 auto; width: 100%; }
@@ -425,6 +430,9 @@ export async function generatePlaylistPlayer(
     const toggleInfoButton = _el('button', `${p}-toggle-info`, labels.hideInfo);
     toggleInfoButton.type = 'button';
     toggleInfoButton.setAttribute('aria-pressed', 'false');
+    // Only meaningful over a media taking the screen. Hidden from the DOM rather
+    // than by the stylesheet, which the integration may well not use.
+    toggleInfoButton.style.display = 'none';
     if (withFullscreen) main.appendChild(toggleInfoButton);
 
     // Shown on a media that is locked or restricted, with a way out of it.
@@ -837,10 +845,19 @@ export async function generatePlaylistPlayer(
         toggleInfoButton.setAttribute('aria-pressed', String(videoOnly));
     };
 
-    /** Hides everything but the media, or brings it all back. */
+    /**
+     * Hides everything but the media, or brings it all back. The hiding is
+     * applied to the elements themselves: an integration that styles the player
+     * on its own, or drops the default stylesheet, must still get the effect.
+     * The `is-video-only` class remains, for whatever else it should carry.
+     */
     const toggleVideoOnly = (force?: boolean): boolean => {
         videoOnly = force ?? !videoOnly;
         container.classList.toggle('is-video-only', videoOnly);
+        [infoBox, controls, listBox].forEach(element => {
+            if (!element.parentNode) return; // never appended: nothing to hide
+            element.style.display = videoOnly ? 'none' : '';
+        });
         syncToggleInfoButton();
         if (debug) console.debug(`Video only: ${videoOnly}.`);
         return videoOnly;
@@ -851,6 +868,7 @@ export async function generatePlaylistPlayer(
         const active = isFullscreen();
         fullscreenButton.textContent = active ? labels.exitFullscreen : labels.fullscreen;
         fullscreenButton.setAttribute('aria-pressed', String(active));
+        toggleInfoButton.style.display = active ? '' : 'none';
         // Leaving fullscreen puts the information back: the next one starts whole.
         if (!active) {
             toggleVideoOnly(false);
