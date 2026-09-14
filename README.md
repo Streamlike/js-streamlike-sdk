@@ -151,6 +151,8 @@ Fetch the media from a playlist with `getMediasFromPlaylist` and display them. T
 ### 3. Display a dynamic transcript
 After loading a player, use `generateWords` to display an interactive transcript. The words are highlighted during playback and are clickable to navigate through the video.
 
+The words file of a subtitle track (`media.metadata.subtitles[].subtitle.url.words`) is served as an object `{source, language, words}` since September 2026, each word carrying its trailing punctuation (`mark`) and the origin of its timing (`source`). Older files are a bare list: `generateWords` accepts both, and the resolved promise carries `wordsCount`, plus `source` and `language` when the file has them.
+
 ```html
 <div id="player-container"></div>
 <div id="words-container"></div>
@@ -498,10 +500,12 @@ as plain text (HTML markup is stripped).
 - `MediaMetadata`: Detailed metadata object for media items.
 - `Playlist`: Main playlist object holding metadata and media items.
 - `PlaylistItem`: Structured item in a playlists response.
-- `PlaylistMetadata`: Interface for playlist metadata (ID, name, description, size, total duration, view position).
+- `PlaylistMetadata`: Interface for playlist metadata (ID, name, description, size, total duration, view position, `degraded` when a search was not applied).
+- `PlaylistParams`: Query parameters of `/ws/playlist` (paging, sorting, `query`, exclusions, `forceplaylist`, `encoding_version`, `multiple_audio`).
 - `IframeOptions`: Options interface for embedding player iframe.
 - `ThumbnailOptions`: Configuration options for interactive thumbnails (mode, fitMode).
 - `TranscriptOptions`: Configuration interface for interactive transcripts (wordsContainer, iframePlayer, autoScroll).
+- `Word` / `WordsFile` / `WordsResult`: Shape of a words file (both the current object and the legacy list) and of the data returned by `generateWords`.
 - `TrimmerOptions`: Configuration interface for the video segment trimmer.
 - `PlaylistPlayerOptions`: Configuration interface for the playlist player (source, playback, display and share options).
 - `PlaylistPlayerInfoOptions`: Toggles for the information displayed during playback.

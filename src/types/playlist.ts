@@ -17,9 +17,24 @@ export interface PlaylistParams extends PaginationParams, SortingParams, ViewPar
      */
     encoded?: boolean;
     /**
-     * Filter mediaParams at least in on playlist {choice values: ["true","false",0,1]}
+     * Keep only the medias filed in at least one playlist (`true` / `1`), dropping those filed nowhere.
+     * Redundant with `playlist_id`, which already implies it.
+     * Webservices 5.20 and later: before that, `0` and `1` were read inverted — send `true` / `false`
+     * if the target server may be older.
      */
-    forceplaylist?: string;
+    forceplaylist?: boolean | 0 | 1 | 'true' | 'false';
+    /**
+     * Filter on the encoder that published the media's files: `2` keeps only the medias published by
+     * the current encoding pipeline, `1` only those published by the legacy encoder, absent does not filter.
+     * A media publishing nothing (never encoded, live, first encoding running) is returned by neither value.
+     * Webservices 5.20 and later.
+     */
+    encoding_version?: 1 | 2;
+    /**
+     * `1` keeps only the medias carrying several audio tracks, `0` only single-track ones, absent does not filter.
+     * Webservices 5.20 and later — earlier servers accept it and ignore it.
+     */
+    multiple_audio?: 0 | 1;
     /**
      * Filter by language code (e.g., 'en', 'fr').
      */

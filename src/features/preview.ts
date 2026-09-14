@@ -44,6 +44,8 @@ export async function generateThumbnail(
     const previewBox = typeof target === 'string' ? document.getElementById(target) : target;
     if (!previewBox) return {res: false, data: null, errors: "Invalid target element."};
     if (!mediaCustomization) return {res: false, data: null, errors: "Missing mediaCustomization"};
+    // An empty value is an absent key: a media without cover has no `cover` at all.
+    const coverUrl = mediaCustomization.cover?.thumbnailextralarge_url ?? '';
     const {
         mode = 'scrubbing',
         duration = 8,
@@ -77,7 +79,7 @@ export async function generateThumbnail(
         object-position: center;
         z-index: 3;
     `;
-    coverImg.src = mediaCustomization.cover.thumbnailextralarge_url;
+    coverImg.src = coverUrl;
 
     // Créer une image de fond floutée pour combler les bandes noires
     const blurredBg = document.createElement('img');
@@ -94,7 +96,7 @@ export async function generateThumbnail(
         z-index: 1;
         display: none;
     `;
-    blurredBg.src = mediaCustomization.cover.thumbnailextralarge_url;
+    blurredBg.src = coverUrl;
 
     const mosaicImg = document.createElement('img');
     mosaicImg.style.cssText = `
@@ -356,8 +358,8 @@ export async function generateThumbnail(
         if (fitMode.cover === FitMode.Contain) {
             blurredBg.style.display = 'block';
             // S'assurer que l'image du flou est bien celle de la cover
-            if (blurredBg.src !== mediaCustomization.cover.thumbnailextralarge_url) {
-                blurredBg.src = mediaCustomization.cover.thumbnailextralarge_url;
+            if (blurredBg.src !== coverUrl) {
+                blurredBg.src = coverUrl;
             }
         } else {
             blurredBg.style.display = 'none';
