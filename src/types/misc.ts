@@ -50,7 +50,11 @@ export interface NowPlayingParams extends MandatoryMediaParams, FormatParam {
 
 
 export interface ResumeParams extends MandatoryMediaParams, FormatParam {
-    user_token:string
+    /**
+     * Your own identifier for the viewer, the same value passed to the player as `user_token=`
+     * for positions to be recorded at all. It is the only identity checked: keep it unguessable.
+     */
+    user_token: string
 }
 
 /**

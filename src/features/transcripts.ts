@@ -1,5 +1,5 @@
 // path: src/features/transcripts.ts
-import {TranscriptOptions, Word} from "../types/features";
+import {TranscriptOptions, Word, WordsFile, WordsResult} from "../types/features";
 import {fixHost} from "../utils/api";
 import {CallbackResponse} from "../types/api";
 
@@ -42,10 +42,10 @@ function _updateWordsHighlight(wordsContainer: HTMLElement, currentTime: number)
  */
 export async function generateWords(url: string, options: TranscriptOptions): Promise<{
     cleanup: () => void;
-} & CallbackResponse> {
+} & CallbackResponse<WordsResult>> {
     const {debug = false} = options;
-    if (debug) console.groupCollapsed(`[generateWords]`);
-    {
+    if (debug) {
+        console.groupCollapsed(`[generateWords]`);
         console.debug(`url:`, url);
         console.debug(`options:`, options);
     }
@@ -105,14 +105,23 @@ export async function generateWords(url: string, options: TranscriptOptions): Pr
             };
         }
 
-        const wordsData: Word[] = await response.json();
+        // The file is an object {source, language, words} since September 2026;
+        // a media untouched since still serves the legacy bare list.
+        const payload: WordsFile | Word[] | null = await response.json();
+        const wordsData: Word[] = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.words) ? payload.words : [];
+        const fileInfo = Array.isArray(payload) || !payload
+            ? {}
+            : {source: payload.source, language: payload.language};
         wordsContainer.innerHTML = '';
 
         wordsData.forEach((wordData) => {
             const span = document.createElement('span');
             span.dataset.start = wordData.start.toString();
             span.dataset.end = wordData.end.toString();
-            span.textContent = wordData.word + ' ';
+            if (wordData.source) span.dataset.source = wordData.source;
+            span.textContent = wordData.word + (wordData.mark ?? '') + ' ';
 
             span.addEventListener('click', () => {
                 const command = `["seek",${span.dataset.start}]`;
@@ -142,7 +151,7 @@ export async function generateWords(url: string, options: TranscriptOptions): Pr
         };
         if (debug) console.groupEnd();
 
-        return {res: true, data: {wordsCount: wordsData.length}, errors: null, cleanup};
+        return {res: true, data: {wordsCount: wordsData.length, ...fileInfo}, errors: null, cleanup};
 
     } catch (e: any) {
         wordsContainer.innerHTML = `<span>${messages.error}</span>`;

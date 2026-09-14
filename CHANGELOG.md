@@ -1,4 +1,21 @@
 # Changelog
+## [3.9.0] - 2026-09-14
+
+Alignment on the Streamlike platform release of 11 September 2026 (webservices 5.20, player rewrite).
+
+### Fix
+- `generateWords` failed with *Error loading transcript* on every media whose subtitles were touched since the platform update: the words file of a subtitle track is now an object `{source, language, words}` instead of a bare list, and is regenerated at every write of the track, imported files and closed captions included. Both shapes are accepted. Each word now carries its trailing punctuation (`mark`), rendered after the word, and the origin of its timing (`source`, exposed as `data-source` on the span). The resolved `data` gains `source` and `language` when the file has them.
+- `generateWords` logged its URL and options to the console on every call, `debug` or not.
+- `generateThumbnail` threw on a media without cover (`cover` is an absent key, not an empty object, and the four sizes appear or disappear together); it now renders the storyboard alone. `MediaCustomization.cover` and `Customization.cover` are optional accordingly, as is `Media.html5_sources`, absent on every media of an account that hides its file URLs.
+
+### New Features (Minor)
+- `PlaylistParams` gains the two filters of webservices 5.20: `encoding_version` (`1` legacy encoder, `2` current pipeline; a media publishing nothing is returned by neither) and `multiple_audio` (`0` / `1`).
+- `PlaylistParams.forceplaylist` is typed `boolean | 0 | 1 | 'true' | 'false'` and documented for what it does: keep only the medias filed in at least one playlist. Webservices 5.20 fixed `0` and `1`, which were read inverted before; a value settled by trial and error against an older server now does the opposite.
+- `GlobalMetadata.encoding_version` (`1 | 2`), **absent** when the media publishes nothing — never file an absent value under "legacy".
+- `MediaMetadata.highlight` (search excerpts of a `query`, typed as a map of field → excerpts) and `MediaMetadata.relation_weight` (`/ws/related` ranking), plus `PlaylistMetadata.degraded`, sent only when the full-text backend was unavailable and the `query` was not applied.
+- Player parameters: `waveform` and `waveform_color` (audio waveform skin); `player` accepts `hlsjs` (`videojs` is now an alias of it) and documents the three cases where it is ignored; `inline_throttling` no longer claims to require the Theo engine; `live_dvr` is documented as accepted but not read by the current player — the rewind window comes from the live's own `dvr` setting, whose API default became `false`.
+- `Resume.timecode` and `ResumeParams.user_token` documented: always present, the furthest second of the most recent session over the last month, `0` for three situations you cannot tell apart.
+
 ## [3.8.1] - 2026-08-05
 
 ### Fix

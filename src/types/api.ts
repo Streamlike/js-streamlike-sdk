@@ -111,6 +111,11 @@ export interface Playlist {
 export interface PlaylistMetadata {
     [key: string]: string | number | boolean | null | undefined;
     size: number;
+    /**
+     * Present, and `true`, only when the full-text backend was unavailable and the `query`
+     * was not applied: the result is then wider than asked, never shorter. Absent otherwise.
+     */
+    degraded?: true;
     playlist_id?: string;
     name?: string;
     description?: string;
@@ -131,7 +136,10 @@ export interface MediaContainer {
 export interface Media {
     metadata: MediaMetadata;
     statistics: Statistics;
-    html5_sources: Html5SourceContainer[];
+    /**
+     * Absent on every media of an account that hides its file URLs — not a sign of a failed encoding.
+     */
+    html5_sources?: Html5SourceContainer[];
 }
 
 /**
@@ -146,6 +154,31 @@ export interface MediaMetadata {
     subtitles?: SubtitleContainer[];
     language_ids: Language[];
     playlists?: MediaPlaylistContainer[];
+    /**
+     * Search excerpts, on the medias of a `/ws/playlist?query=` result where the search matched, and on those alone.
+     * Keys are the matched fields, e.g. `name.stemmed` or `description` (a list of strings, matches wrapped in `<em>`)
+     * and `subtitle.<language>` (a list of `{timecode, text}`). Read it as a map, do not hard-code the keys.
+     */
+    highlight?: Highlight;
+    /**
+     * `/ws/related` only: number of keywords shared with the source media, which the results are ranked on.
+     */
+    relation_weight?: number;
+}
+
+/**
+ * Search excerpts of a media matched by a `query`.
+ */
+export interface Highlight {
+    [field: string]: string[] | HighlightSubtitle[];
+}
+
+/**
+ * A subtitle line matched by a `query`.
+ */
+export interface HighlightSubtitle {
+    timecode: number;
+    text: string;
 }
 
 /**
@@ -160,6 +193,12 @@ export interface GlobalMetadata {
     permalink: string;
     status: "online" | string; // Status can be other strings
     description?: string;
+    /**
+     * Encoder that produced the files served today: `2` for the current encoding pipeline, `1` for the legacy encoder.
+     * **Absent** — not `0`, not `null` — when the media publishes nothing (never encoded, a live, a first encoding
+     * still running): never file an absent value under "legacy".
+     */
+    encoding_version?: 1 | 2;
     transcript?: string;
     duration: number;
     ratio: number;
@@ -207,10 +246,11 @@ export interface StandardKeyword {
 
 /**
  * Customization options (cover, mosaic, etc.).
+ * An empty value is an absent key: the four cover sizes appear or disappear together.
  */
 export interface Customization {
-    cover: Cover;
-    mosaic: string;
+    cover?: Cover;
+    mosaic?: string;
     board?: Board;
 }
 
@@ -331,6 +371,10 @@ export interface ResumeResponse {
 
 /**
  * Contains the resume timecode.
+ * Always present, an integer number of seconds. It is the furthest second reached during the most
+ * recent session of the `user_token` on the media — not where playback stopped — looked up over the
+ * last month only. `0` covers three situations you cannot tell apart: the token was never seen, the
+ * viewer watched more than a month ago, or they really are at the beginning.
  */
 export interface Resume {
     timecode: number;

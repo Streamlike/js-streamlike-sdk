@@ -239,8 +239,9 @@ export interface PlayerParams {
     infos?: boolean | string;
 
     /**
-     * Requires using the Theo player. Limits the quality of available videos for inline playback only
-     * (not in full screen mode), by specifying a maximum bitrate (in Kbps)
+     * Limits the quality of available videos for inline playback only (not in full screen mode),
+     * by specifying a maximum bitrate (in Kbps). Both engines honour it; in Safari for macOS a capped
+     * media is served by `hlsjs` whatever `player` says.
      * @default -
      * @streamlive yes
      * @streamout yes
@@ -274,7 +275,9 @@ export interface PlayerParams {
     landing?: boolean;
 
     /**
-     * Enables DVR mode during live streaming
+     * Accepted for compatibility; the current player does not read it. The rewind window comes from
+     * the live itself: about 45 minutes when it was created with `live[dvr]=true` through the API,
+     * about 100 seconds otherwise (the API default is `false` since API 5.30).
      * @default true
      * @streamlive yes
      * @streamout no
@@ -422,12 +425,17 @@ export interface PlayerParams {
     playback_speed?: boolean;
 
     /**
-     * Forces the player type
-     * @default flow
+     * Forces the playback engine. `videojs` is accepted as an alias of `hlsjs`.
+     * Ignored in three cases, where only one engine can do the job: a live always plays on `theo`
+     * (a streamout whose schedule holds a live too), `background_audio=1` always plays on `hlsjs`,
+     * and a quality-capped media (`throttling`, `inline_throttling`, `max_width`, `max_height`)
+     * always plays on `hlsjs` in Safari for macOS. Without the parameter, Safari (macOS, iOS, iPadOS)
+     * gets `theo` and other browsers follow the player settings, `hlsjs` by default.
+     * @default hlsjs
      * @streamlive yes
      * @streamout yes
      */
-    player?: "videojs" | "theo";
+    player?: "hlsjs" | "theo" | "videojs";
 
     /**
      * Preloads the media
@@ -629,4 +637,24 @@ export interface PlayerParams {
      * @streamout yes
      */
     volume?: number | boolean;
+
+    /**
+     * Audio medias: shows the interactive waveform skin drawn from the media's sound. `false` restores
+     * the cover display, `true` forces the skin on a media that carries an uploaded cover.
+     * No effect when the media has no peaks file.
+     * @default true
+     * @streamlive no
+     * @streamout no
+     */
+    waveform?: boolean;
+
+    /**
+     * Accent color of the waveform skin, an HTML color without the `#` (e.g. `FF01F8`); the background
+     * shade is derived from it. Left unset, the account's `waveform_color` preference applies, then
+     * the platform teal.
+     * @default 44B0A7
+     * @streamlive no
+     * @streamout no
+     */
+    waveform_color?: string;
 }
