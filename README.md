@@ -515,8 +515,9 @@ as plain text (HTML markup is stripped).
 - `PlaylistListPosition`: Enum defining where the list is rendered (`right`, `left`, `bottom`, `top`).
 - `IframeParams`: Settings applied to the generated `<iframe>` (permissions, load callback).
 - `SortingParams`: Common sorting parameters for API requests.
-- `OrderByPlaylist`: Enum defining sorting fields for media within a playlist.
+- `OrderByPlaylist`: Enum defining sorting fields for media within a playlist (`vote.rate`, the average rating, needs Streamlike 6.1.1 or later).
 - `OrderByPlaylists`: Enum defining sorting fields for playlists.
+- `OrderByPodcast`: Enum defining sorting fields for the `/ws/podcast` feed (`releasedate` needs Streamlike 6.1.1 or later).
 - `TypePlayerId`: Enum defining player identifier type (`media`, `permalink`, `streamout`, `live`).
 - `CallbackResponse<T>`: Standard callback response structure (`res`, `data`, `errors`).
 - `MediaCallbackResponse`: Callback response structure returned by `setResponsiveIframe`.
