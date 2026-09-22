@@ -1,4 +1,12 @@
 # Changelog
+## [3.10.0] - 2026-09-22
+
+Alignment on Streamlike 6.1.1.
+
+### New Features (Minor)
+- `OrderByPlaylist.VOTE_RATE` (`orderby=vote.rate`): `/ws/playlist` sorts on the average rating (`statistics.rating_rate`), where `vote` sorts on the number of votes. Streamlike 6.1.1 and later.
+- `OrderByPodcast`: the sorting fields of the `/ws/podcast` feed (`creationdate`, `lastupdateddate`, `lastupdatedfiledate`, and `releasedate` since Streamlike 6.1.1). The SDK does not fetch the feed, which is XML meant for podcast directories; the enum types `orderby` when building its URL.
+
 ## [3.9.0] - 2026-09-14
 
 Alignment on the Streamlike platform release of 11 September 2026 (webservices 5.20, player rewrite).

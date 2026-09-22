@@ -5,7 +5,8 @@ import {PaginationParams, SortingParams, ViewParams} from "./base";
  * Defines the query parameters for the /ws/playlist endpoint
  * based on the OpenAPI specification.
  * Extends common pagination and sorting parameters.
- * orderby choice values  : ["id","name","duration","vote","hit","lastplaybackdate","creationdate","lastupdateddate","lastupdatedfiledate","releasedate","position"]
+ * orderby choice values  : ["id","name","duration","vote","vote.rate","hit","lastplaybackdate","creationdate","lastupdateddate","lastupdatedfiledate","releasedate","position"]
+ * (`vote.rate`, the average rating, needs Streamlike 6.1.1 or later)
  */
 export interface PlaylistParams extends PaginationParams, SortingParams, ViewParams {
     /**
