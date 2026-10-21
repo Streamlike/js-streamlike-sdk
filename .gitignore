@@ -1,29 +1,37 @@
-# Dependencies
+# Dépendances
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# TypeScript build output
+# Sortie de compilation TypeScript
 dist/
 *.tsbuildinfo
 
-# IDE
+# Éditeurs et IDE
 .idea/
 .vscode/
 *.sublime-*
 *.swp
 *.swo
 
-# OS
+# Systèmes de fichiers
 .DS_Store
 Thumbs.db
 
-# Environment and local configs
+# Environnement et configuration locale
 .env
 .env.local
 .env.*.local
 *.local.json
-/demo-recette/
-/mon_diff.patch
-/blog/
+
+# Agents de développement
+.claude/
+
+# Brouillons et bacs à sable locaux.
+# Motifs volontairement génériques : ce fichier part dans le dépôt public, il
+# n'a donc pas à nommer nos environnements ni nos répertoires de travail.
+# Toute expérimentation locale se range sous un de ces chemins.
+/local/
+*.local/
+*.patch
