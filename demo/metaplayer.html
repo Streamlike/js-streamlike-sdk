@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Meta Player Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container { max-width: 980px; }
+        .meta-demo { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 1.5rem; align-items: start; }
+        @media (max-width: 820px) { .meta-demo { grid-template-columns: minmax(0, 1fr); } }
+
+        .side h3 { margin: 0 0 .5rem; font-size: .95rem; color: #293c5a; }
+        .comment-list { list-style: none; margin: 0 0 1.5rem; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+        .comment-list button {
+            width: 100%; text-align: left; font: inherit; font-size: .8rem; cursor: pointer;
+            background: #f4f7f6; color: #333; border: 1px solid #e3e9e8; border-radius: 6px; padding: .4rem .5rem;
+        }
+        .comment-list button:hover { border-color: #293c5a; }
+        .comment-list .tc { font-weight: 700; color: #293c5a; font-variant-numeric: tabular-nums; }
+        .comment-list li.is-playing button { background: #fff6dc; border-color: #fbbf24; }
+
+        .readout { font-size: .8rem; font-variant-numeric: tabular-nums; }
+        .readout dt { font-weight: 700; color: #293c5a; margin-top: .4rem; }
+        .readout dd { margin: 0; }
+
+        /* The player is styled from the page: five custom properties and the
+           classes of the prefix are all it takes. */
+        #meta-player .sl-meta {
+            --sl-meta-bar: #293c5a;
+            --sl-meta-accent: #44b0a7;
+            --sl-meta-accent-text: #04261f;
+            --sl-meta-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK - Meta Player Demo</h1>
+    <p>
+        This page demonstrates <code>generateMetaPlayer</code>: the Streamlike player without its own
+        interface, driven from the page, with a <strong>jog wheel</strong>, <strong>21 playback
+        speeds</strong>, <strong>zoom inside the picture</strong>, <strong>layers</strong> (the
+        comments on the timeline, the tags in the picture) and the <strong>audience curve</strong>
+        over the progress bar.
+    </p>
+    <p>
+        Drag or scroll the wheel to browse by the second. Scroll over the picture to zoom, drag to
+        move, double click to come back. Hover the progress bar to open the audience curve. The
+        comments on the right and their markers answer to each other.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <hr>
+    <form id="media-form">
+        <label for="media-id-input">Media ID:</label>
+        <input type="text" id="media-id-input" placeholder="your-media-id-here" required value="9dd61d7f5e077fdb">
+        <button type="submit">Load the meta player</button>
+    </form>
+    <hr>
+
+    <div class="meta-demo">
+        <div id="meta-player"></div>
+        <div class="side">
+            <h3>Comments</h3>
+            <ul class="comment-list" id="comment-list"></ul>
+            <h3>Where we are</h3>
+            <dl class="readout">
+                <dt>Position</dt>
+                <dd id="readout-time">—</dd>
+                <dt>Speed</dt>
+                <dd id="readout-speed">—</dd>
+                <dt>Zoom</dt>
+                <dd id="readout-zoom">—</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import {generateMetaPlayer, LayerRender, audienceBuckets} from '../dist/index.mjs';
+
+    /**
+     * The comments of the media, as an application would have them in its own
+     * database: an id, a moment, an author and a text.
+     */
+    const comments = [
+        {id: 1, at: 4, author: 'Ada', text: 'The logo lands a touch late here.'},
+        {id: 2, at: 5.2, author: 'Bob', text: 'Agreed — half a second earlier.'},
+        {id: 3, at: 22, author: 'Cyd', text: 'This transition is the best of the film.'},
+        {id: 4, at: 41, author: 'Ada', text: 'Typo on the lower third.'},
+        {id: 5, at: 58, author: 'Dai', text: 'Mix the music down under the voice.'}
+    ];
+
+    /**
+     * Tags placed in the picture: a point follows a detail, a box frames an
+     * area over a range of time. Coordinates are fractions of the picture, so
+     * they hold at any size, and they follow the zoom.
+     */
+    const tags = [
+        {id: 'logo', at: 6, x: 0.5, y: 0.42, label: 'logo'},
+        {id: 'lower-third', from: 38, to: 46, x: 0.08, y: 0.72, w: 0.4, h: 0.16, label: 'lower third'},
+        {id: 'cta', from: 64, to: 75, x: 0.6, y: 0.25, w: 0.33, h: 0.3, label: 'call to action'}
+    ];
+
+    /**
+     * Stands in for your backend. The real figures come from the REST API
+     * (`GET /analytics/engagement/{media_id}/qualities/{from}/{to}`), read on
+     * a server — never in a browser, where an API key cannot be kept — and
+     * `audienceBuckets` turns its per-second counts into the curve drawn here.
+     *
+     * What comes out is a number of playbacks per slice, not a percentage: the
+     * height of the curve already says where the views are, and the figure a
+     * viewer reads has to be a count.
+     */
+    async function loadAudienceCurve(duration) {
+        const seconds = {};
+        for (let second = 0; second < duration; second++) {
+            const watched = 900 * Math.exp(-second / (duration * 0.8))
+                + 380 * Math.exp(-((second - duration * 0.3) ** 2) / 40)
+                + 220 * Math.exp(-((second - duration * 0.75) ** 2) / 25);
+            seconds[second] = Math.max(1, Math.round(watched));
+        }
+        return audienceBuckets(seconds, duration);
+    }
+
+    const listElement = document.getElementById('comment-list');
+    const timeElement = document.getElementById('readout-time');
+    const speedElement = document.getElementById('readout-speed');
+    const zoomElement = document.getElementById('readout-zoom');
+    let player = null;
+
+    /** The comment list beside the player: a click sends the video there. */
+    function renderComments(onPick) {
+        listElement.innerHTML = '';
+        for (const comment of comments) {
+            const item = document.createElement('li');
+            item.id = `comment-${comment.id}`;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = `<span class="tc">${formatClock(comment.at)}</span> ${comment.author} — ${comment.text}`;
+            button.addEventListener('click', () => onPick(comment));
+            item.appendChild(button);
+            listElement.appendChild(item);
+        }
+    }
+
+    function formatClock(seconds) {
+        const total = Math.max(0, Math.floor(seconds));
+        return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    }
+
+    /** Lights the cards of the comments playing right now. */
+    function markPlaying(time) {
+        for (const comment of comments) {
+            const playing = time >= comment.at && time < comment.at + 3;
+            document.getElementById(`comment-${comment.id}`)?.classList.toggle('is-playing', playing);
+        }
+    }
+
+    async function loadMetaPlayer(mediaId) {
+        if (!mediaId) return;
+        player?.destroy();
+
+        player = await generateMetaPlayer('meta-player', {
+            mediaId,
+            // Reading the media gives the duration, the ratio and the frame rate
+            startAt: 0,
+            transport: {layerToggles: true},
+            audience: {
+                // The duration is known once the player is built; the loader is
+                // called then, so it can be asked for
+                load: () => loadAudienceCurve(player?.getDuration() || 75),
+                display: 'peek',
+                height: 44
+            },
+            layers: [
+                {
+                    id: 'comments',
+                    label: 'Comments',
+                    // The mark identifying the lane, since three lanes of
+                    // identical markers cannot be told apart otherwise
+                    icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/></svg>',
+                    render: LayerRender.Timeline,
+                    color: '#44b0a7',
+                    items: comments,
+                    // A marker was clicked: show its comments in the list
+                    onSelect: items => {
+                        const card = document.getElementById(`comment-${items[0].id}`);
+                        card?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                    }
+                },
+                {
+                    id: 'tags',
+                    label: 'Tags in the picture',
+                    icon: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>',
+                    render: LayerRender.Both,
+                    color: '#fbbf24',
+                    items: tags
+                }
+            ]
+        });
+
+        if (!player.res) {
+            document.getElementById('meta-player').textContent = player.errors ?? 'Unable to load the media.';
+            return;
+        }
+
+        player.on('time', time => {
+            timeElement.textContent = `${time.toFixed(2)} s`;
+            markPlaying(time);
+        });
+        player.on('speed', speed => speedElement.textContent = `${speed} ×`);
+        player.on('zoom', state => zoomElement.textContent = `${state.scale.toFixed(2)} ×`);
+        player.on('select', (items, layer) => console.log('selected', layer.id, items));
+
+        speedElement.textContent = `${player.getSpeed()} ×`;
+        zoomElement.textContent = `${player.getZoom().scale.toFixed(2)} ×`;
+
+        // Clicking a comment in the list positions the video and lights its marker
+        renderComments(comment => {
+            player.seek(comment.at);
+            player.highlight('comments', [comment.id]);
+        });
+    }
+
+    document.getElementById('media-form').addEventListener('submit', event => {
+        event.preventDefault();
+        void loadMetaPlayer(document.getElementById('media-id-input').value.trim());
+    });
+
+    void loadMetaPlayer(document.getElementById('media-id-input').value.trim());
+</script>
+
+</body>
+</html>

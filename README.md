@@ -8,6 +8,7 @@ The Streamlike JS SDK is a TypeScript library designed to interact with the Stre
 - Display of dynamic transcripts synchronized with video playback.
 - Playlist player with navigation, configurable information panel and shareable timecoded links.
 - Interactive trimmer for video segments.
+- Meta player: jog wheel, 21 playback speeds, zoom inside the picture, layers of timed and placed items (comments, tags, chapters) and the audience curve.
 - Fully typed with TypeScript for a better development experience.
 
 ## Live Demo
@@ -456,6 +457,195 @@ A default stylesheet is injected once per prefix, using single-class selectors s
 easily. Set `injectStyles: false` to start from a blank slate. Descriptions coming from the API are rendered
 as plain text (HTML markup is stripped).
 
+### 6. The meta player: jog wheel, speeds, zoom, layers and audience curve
+
+`generateMetaPlayer` embeds the Streamlike player **without its own interface** and drives it from the
+page, so the controls know where the playback is and the page can draw on top of it. It is the tool for
+reviewing, annotating and analysing a media rather than simply watching it.
+
+```html
+<div id="meta-player"></div>
+```
+
+```javascript
+import {generateMetaPlayer, LayerRender} from 'js-streamlike-sdk';
+
+const player = await generateMetaPlayer('meta-player', {
+    mediaId: 'YOUR_MEDIA_ID',
+    layers: [{
+        id: 'comments',
+        label: 'Comments',
+        items: comments.map(c => ({id: c.id, at: c.timecode, author: c.author, text: c.body})),
+        onSelect: items => openComment(items[0].id)
+    }],
+    audience: {load: () => fetch('/api/audience-curve').then(r => r.json())}
+});
+
+player.on('time', seconds => timecodeField.value = seconds.toFixed(2));
+```
+
+The media still plays in the Streamlike player, with its token: nothing here reads the stream. The
+duration, the aspect ratio and the frame rate are read from `/ws/media`, unless you pass them.
+
+#### What it adds
+
+| Part | Option | What it is |
+| --- | --- | --- |
+| Jog wheel | `jog` | A notched cylinder turned with a finger, a drag or the wheel, with momentum when let go. Shift scrolls finer. Its sensitivity follows the duration — a 30 s clip and a two-hour match are not browsed at the same pace |
+| Playback speed | `speed` | 21 notches from 0.1× to 8×, 1× in the middle. Wheel, arrows or the − / + buttons; a click goes back to 1× |
+| Zoom | `zoom` | Zoom and pan inside the picture, up to three times the definition of the stream, on mouse, trackpad and touch alike |
+| Layers | `layers` | Sets of items placed in time, and optionally in the picture |
+| Audience curve | `audience` | Which parts were watched most, over the progress bar, **in views** |
+| Control bar | `transport` | Play, progress, times, volume, fullscreen, image-by-image steps, layer toggles, a help button — each one can be left out |
+| Keyboard | `keyboard` | ←/→ ±1 s (Shift ±5 s), PageUp/PageDown ±30 s, `,` and `.` one image, Home/End, Space |
+
+Pass `false` to leave a part out entirely: `{jog: false, zoom: false}`.
+
+#### Layers: the format
+
+A layer is a named set of items. What a layer *means* — comments, tags, chapters, events, detections — is
+yours; the player places them, clusters them, lights them when current and hands them back when clicked.
+
+```javascript
+{
+    id: 'tags',                     // also used in the CSS classes: sl-meta-layer-tags-*
+    label: 'Tags',
+    render: LayerRender.Both,       // Timeline (default), Stage, or Both
+    color: '#fbbf24',               // exposed as --sl-meta-layer-color on its elements
+    items: [
+        // In time only: a marker under the progress bar
+        {id: 1, at: 42, author: 'Ada', text: 'The logo lands late'},
+        // A range: drawn as a span rather than a marker
+        {id: 2, from: 60, to: 95, label: 'Second act'},
+        // In time and in the picture: a pin at 25 % / 50 % of the image
+        {id: 3, at: 42, x: 0.25, y: 0.5, label: 'the logo'},
+        // A box framing an area, for as long as it lasts
+        {id: 4, from: 38, to: 46, x: 0.08, y: 0.72, w: 0.4, h: 0.16, label: 'lower third'}
+    ],
+    onSelect: (items, layer) => console.log(items)
+}
+```
+
+- **Time.** `at` places an instant, `from` / `to` a range. An instant is "current" for `activeWindow`
+  seconds (3 by default): its marker lights up and its shape shows.
+- **Space.** `x` and `y` are fractions of the picture (0 → 1) from its top-left corner, so they hold at any
+  player size; `w` and `h` make it a box. They are only needed by a layer drawing on the stage.
+- **The stage follows the zoom.** A box framing something in the image stays on it when you zoom in; a pin
+  keeps its size on screen rather than growing out of the frame. `scaleWithPicture` decides, and defaults to
+  the sensible one per shape.
+- Markers too close to be told apart **merge into one carrying their count**, at the width actually
+  displayed; hovering one previews its items. A range is drawn as a plain bar and reads the same way —
+  no text inside it, which only ever fits when the range happens to be long.
+- **Three lanes are drawn at most**, each identified by the layer's `icon` in the gutter before its
+  track. Past three, the bar reads as a wall of dots; the further layers keep their items and their
+  stage shapes, they simply do not take a lane.
+- `items` can be replaced at any time with `setLayerItems()`, or fetched by the layer itself with `load`.
+
+#### The audience curve
+
+The figures come from the REST API (`GET /analytics/engagement/{media_id}/qualities/{from}/{to}`), which
+runs **on your server** — an API key acts as the account that created it and has no place in a browser. So
+the curve is handed to the player, and `audienceBuckets` turns the per-second counts of that report into
+what it draws:
+
+```javascript
+// On your server
+const report = await streamlike.analytics(`engagement/${mediaId}/qualities/${from}/${to}`, {aggregation: 'total'});
+res.json(audienceBuckets(report.data.__all__, media.metadata.global.duration)); // 100 slices, in views
+
+// In the page
+audience: {load: () => fetch('/api/audience-curve').then(r => r.json()), display: 'peek'}
+```
+
+`display: 'peek'` opens the curve over the progress bar while it is hovered or touched, `'always'` keeps it
+there. Under the pointer it reads the timecode and **how many times that slice was played** — a number of
+views, never a percentage: a share of the busiest moment of one media says nothing anyone can act on.
+
+#### Driving it from the page
+
+The controller is returned once the player is built:
+
+```javascript
+player.seek(42);                              // and step(), stepFrames(), play(), pause()
+player.setSpeed(1.9);                         // snapped to the nearest notch: 2
+player.setZoom({scale: 2, tx: -40, ty: 0});   // a saved framing
+player.setLayerItems('comments', freshList);  // after a comment was posted
+player.highlight('comments', [commentId]);    // a timecode was clicked in your own list
+player.toggleLayer('tags', false);
+await player.toggleFullscreen();              // the whole player, not the iframe
+player.destroy();
+```
+
+Events: `ready`, `time`, `state`, `speed`, `zoom`, `volume`, `fullscreen`, `select`, `layers`.
+
+```javascript
+const off = player.on('select', (items, layer) => scrollToComment(items[0].id));
+off(); // or player.off('select', listener)
+```
+
+Two things worth knowing, both learned the hard way:
+
+- **before its first playback the player ignores a seek and reports 0.** The meta player starts it muted at
+  the first move and pauses it at once, so the picture follows the wheel and the bar from the start. Set
+  `primeOnSeek: false` if a silent frame of playback is not acceptable,
+- **the position shown is the page's, not the player's.** During a gesture, and for a moment after a seek,
+  the player still announces where it was; those reports are ignored, which is what makes the wheel smooth.
+
+#### Styling
+
+Five custom properties theme the whole player, on the root element or through `theme`:
+
+```css
+.sl-meta {
+    --sl-meta-bar: #293c5a;        /* the control bar */
+    --sl-meta-text: #ffffff;
+    --sl-meta-accent: #44b0a7;     /* progress, jog cursor, markers, focus rings */
+    --sl-meta-accent-text: #04261f;
+    --sl-meta-backdrop: #000000;   /* behind the picture */
+    --sl-meta-curve: var(--sl-meta-accent);
+    --sl-meta-radius: 8px;
+}
+```
+
+Beyond that, every element carries a class prefixed with `classPrefix` (`sl-meta` by default):
+
+| Class | Element |
+| --- | --- |
+| `sl-meta` / `sl-meta-frame` / `-picture` / `-overlay` / `-stage` / `-zoom-reset` | Root, picture and the layer catching the gestures |
+| `sl-meta-controls` / `-bar` / `-row` / `-button` / `-button-small` / `-icon` / `-group` / `-hint` | The control bar |
+| `sl-meta-play` / `-mute` / `-volume` / `-fullscreen` / `-frame-previous` / `-frame-next` / `-slower` / `-faster` / `-speed` / `-zoom-in` / `-zoom-out` | Its controls |
+| `sl-meta-elapsed` / `-remaining` / `-progress` / `-progress-fill` / `-progress-thumb` | Position and progress |
+| `sl-meta-peek` (+ `is-always`, `is-empty`) / `-curve` / `-curve-path` / `-curve-cursor` / `-curve-tooltip` / `-curve-empty` | The audience curve |
+| `sl-meta-timeline` / `-lane` / `-marker` (+ `is-cluster`, `is-active`, `is-highlighted`) / `-span` / `-preview` / `-preview-item` / `-preview-head` / `-preview-text` / `-preview-more` | The layers on the timeline |
+| `sl-meta-plane` / `-shape` (+ `sl-meta-shape-point`, `-shape-box`, `-shape-label`, `is-fixed-size`) | The layers in the picture |
+| `sl-meta-jog` / `-jog-ticks` / `-jog-shade` / `-jog-cursor` / `-jog-direction` / `-jog-readout` | The jog wheel |
+| `sl-meta-layer-toggles` / `-layer-toggle` | The layer checkboxes |
+
+Every element of a layer also carries `sl-meta-layer-{id}-{part}`, so comments and tags can be told apart
+without the SDK knowing what either means. A default stylesheet is injected once per prefix, with
+single-class selectors so your own rules override it easily; `injectStyles: false` starts from a blank
+slate, and `metaPlayerStyles(prefix)` returns the sheet as a string if you would rather ship it yourself.
+
+#### Trying the options out
+
+`demo/metaplayer-configurator.html` is the whole option surface on a live player: toggle a part,
+change a value, and the page rebuilds the player and writes **the options that differ from the
+defaults** — the snippet to paste, rather than a dump of everything the SDK already does.
+
+The data the player is given is editable too, two ways on the same state: a **form**, one card per
+item showing only the keys that item uses, with add and remove and a field for the audience counts;
+and the **JSON**, validated before it is applied — an item with no time or a curve that is not
+numbers is refused with the reason, and nothing is half-applied. Editing either refreshes the other
+and the player.
+
+#### The arithmetic, on its own
+
+The numbers behind the player are free of the DOM and exported separately, for an integration placing its
+own markers or writing its own controls: `audienceBuckets`, `curvePath`, `curveAt`, `clusterItems`,
+`activeItems`, `itemTime`, `itemWindow`, `formatMetaTime`, `formatPreciseTime`, `formatSpeed`,
+`parseTimecode`, `metaPlayerUrl`, `maxZoom`, `zoomAround`, `clampPan`, `DEFAULT_SPEEDS`.
+
+
 ## API Reference
 
 ### Core Utility
@@ -492,6 +682,9 @@ as plain text (HTML markup is stripped).
 - `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
 - `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
+- `generateMetaPlayer(target, options)`: Generates a meta player — the Streamlike player without its own interface, driven from the page, with a jog wheel, 21 playback speeds, zoom inside the picture, layers of timed and placed items and the audience curve. Returns a `MetaPlayerController` (`play`, `pause`, `togglePlay`, `seek`, `step`, `stepFrames`, `getTime`, `getDuration`, `getState`, `setSpeed`, `getSpeed`, `setVolume`, `toggleMute`, `zoomBy`, `setZoom`, `resetZoom`, `setLayerItems`, `reloadLayer`, `toggleLayer`, `addLayer`, `removeLayer`, `getLayers`, `highlight`, `setAudienceCurve`, `reloadAudience`, `isFullscreen`, `toggleFullscreen`, `on`, `off`, `getElements`, `send`, `destroy`).
+- `audienceBuckets(seconds, duration, buckets = 100)`: Turns the per-second playback counts of the engagement report into the audience curve the meta player draws.
+- `metaPlayerStyles(prefix)`: The default stylesheet of the meta player, as a string.
 - `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `loadMore`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getTotal`, `getCurrentTime`, `isFullscreen`, `toggleFullscreen`, `getShareUrl`, `destroy`).
 
 ### Important Types

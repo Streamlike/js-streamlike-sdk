@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Player commands</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container { max-width: 1180px; }
+        .warning {
+            margin: 1rem 0; padding: .75rem 1rem; border-left: 4px solid #d97706;
+            background: #fffbeb; border-radius: 4px; font-size: .9rem; line-height: 1.6;
+        }
+        .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.5rem; align-items: start; }
+        @media (max-width: 920px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+        .commands { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.25rem; }
+        .commands fieldset { border: 1px solid #e0e4e8; border-radius: 6px; padding: .75rem 1rem 1rem; }
+        .commands fieldset.recette { border-color: #fcd34d; background: #fffdf5; }
+        .commands legend { font-weight: 700; color: #293c5a; }
+        .commands legend .tag {
+            margin-left: .4rem; padding: .05rem .35rem; border-radius: 3px; background: #b45309;
+            color: #fff; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+        }
+        .row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .5rem; }
+        .row + .row { margin-top: .5rem; }
+        .row .caption { font-size: .78rem; font-weight: 700; color: #475569; min-width: 4.5rem; }
+        .commands button {
+            font-size: .85rem; padding: .35rem .7rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .commands button.off { background: #6b7280; }
+        .commands button.off:hover { background: #4b5563; }
+        .commands button.discovered { background: #0f766e; }
+        .commands button.discovered:hover { background: #115e59; }
+        .commands input[type="text"], .commands input[type="number"] {
+            font-size: .85rem; padding: .35rem .5rem; flex-grow: 0; width: 11rem;
+        }
+        .commands input[type="number"] { width: 6.5rem; }
+        .commands input[type="range"] { width: 9rem; accent-color: #293c5a; }
+        .hint { margin: .5rem 0 0; font-size: .78rem; color: #6b7280; line-height: 1.55; }
+        .hint code { background: #f1f5f9; padding: 0 .25rem; border-radius: 3px; }
+        .empty { font-size: .8rem; color: #b45309; font-style: italic; }
+
+        .side { position: sticky; top: 1rem; }
+        .side h2 { font-size: .95rem; color: #293c5a; margin: 0 0 .5rem; }
+        .state {
+            display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem;
+            font-size: .8rem; margin-bottom: .75rem; padding: .5rem .6rem;
+            background: #f1f5f9; border-radius: 6px; font-variant-numeric: tabular-nums;
+        }
+        .state dt { font-weight: 700; color: #475569; }
+        .state dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .log-lines {
+            margin: 0; padding: .5rem; height: 360px; overflow: auto; background: #0f172a; color: #e2e8f0;
+            border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .75rem; line-height: 1.6;
+        }
+        .log-line { white-space: pre-wrap; word-break: break-all; }
+        .log-line .at { color: #64748b; }
+        .log-line.sent .arrow { color: #38bdf8; }
+        .log-line.received .arrow { color: #4ade80; }
+        .log-line.note { color: #fbbf24; }
+        .log-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .5rem; font-size: .8rem; }
+        .log-actions button { font-size: .8rem; padding: .3rem .6rem; }
+        .log-actions label { font-weight: 400; display: inline-flex; align-items: center; gap: .3rem; }
+
+        .media-facts { font-size: .8rem; color: #374151; margin-top: .75rem; line-height: 1.7; }
+        .media-facts code { background: #f1f5f9; padding: 0 .25rem; border-radius: 3px; }
+        #setup { flex-wrap: wrap; }
+        #setup select { padding: .5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Player commands</h1>
+    <p>
+        The player is driven from the page through its <code>postMessage</code> API. This page sends
+        every command it accepts: the transport ones, which work everywhere, and the four families that
+        pick a <strong>track</strong> or a <strong>panel</strong> — subtitles, audio, interactions and
+        chapters — which are not deployed in production yet.
+    </p>
+    <div class="warning">
+        <strong>The four track families are not deployed in production yet.</strong> Sending one here is
+        expected to do nothing: a player swallows a command it does not know. That is the point of this
+        page — the <code>channel</code> line on the right tells a player that never answered from one
+        that answers everything except these four, which is the difference between "my page is broken"
+        and "the command is not deployed".
+        <br>
+        It opens on a media carrying subtitles and chapters, so the buttons are built from the tracks
+        <code>/ws/media</code> really declares rather than from guesses.
+    </div>
+    <a href="index.html" target="_self">Back</a>
+
+    <form id="setup">
+        <label for="media-id-input">Media ID:</label>
+        <input type="text" id="media-id-input" placeholder="your-media-id-here" required value="448ea8e7ea497707">
+        <label for="type-select">as</label>
+        <select id="type-select">
+            <option value="media" selected>media_id</option>
+            <option value="str_id">str_id (streamout)</option>
+            <option value="permalink">permalink</option>
+        </select>
+        <button type="submit">Load the player</button>
+    </form>
+
+    <hr>
+
+    <div class="layout">
+        <div>
+            <!-- The div that will contain the video player -->
+            <div id="player-container"></div>
+            <p class="media-facts" id="media-facts"></p>
+
+            <div class="commands">
+                <fieldset>
+                    <legend>Transport</legend>
+                    <div class="row">
+                        <span class="caption">State</span>
+                        <button type="button" data-command='["play"]'>play</button>
+                        <button type="button" data-command='["pause"]'>pause</button>
+                        <button type="button" data-command='["fullscreen"]'>fullscreen</button>
+                    </div>
+                    <div class="row">
+                        <span class="caption">Sound</span>
+                        <button type="button" data-command='["mute"]'>mute</button>
+                        <button type="button" data-command='["unmute"]' class="off">unmute</button>
+                        <input type="range" id="volume-range" min="0" max="1" step="0.05" value="1"
+                               aria-label="Volume">
+                        <code id="volume-value">1</code>
+                        <button type="button" id="volume-send">volume</button>
+                    </div>
+                    <div class="row">
+                        <span class="caption">Seek</span>
+                        <input type="number" id="seek-value" step="0.1" min="0" value="30" aria-label="Seconds">
+                        <button type="button" id="seek-send">seek</button>
+                        <button type="button" id="seek-back">&minus;10 s</button>
+                        <button type="button" id="seek-forward">+10 s</button>
+                    </div>
+                    <div class="row">
+                        <span class="caption">Speed</span>
+                        <span id="speed-buttons" class="row" style="margin:0;gap:.4rem"></span>
+                        <input type="number" id="speed-value" step="0.05" min="0.1" value="1.3" aria-label="Rate">
+                        <button type="button" id="speed-send">speed</button>
+                    </div>
+                    <p class="hint">
+                        <code>["seek", 30.4]</code> and <code>["speed", 1.3]</code> take a number,
+                        <code>["volume", 0.5]</code> a value between 0 and 1. The relative seeks count from
+                        the position the player last reported, shown on the right.
+                    </p>
+                </fieldset>
+
+                <fieldset class="recette">
+                    <legend>Subtitles <span class="tag">not deployed</span> — <code>["subtitles", …]</code></legend>
+                    <div class="row" id="subtitles-buttons"></div>
+                    <div class="row">
+                        <input type="text" id="subtitles-free" placeholder="language code, e.g. fr">
+                        <button type="button" data-free="subtitles">Send</button>
+                    </div>
+                    <p class="hint">
+                        A language code turns that track on, <code>null</code> turns subtitles off.
+                        Mirrors <code>subtitle=</code>. The buttons carry
+                        <code>subtitles[].subtitle.language_id</code> <strong>as the webservice gives
+                        it</strong>: the suffix is part of the code, and <code>fr-cc</code> — closed
+                        captions in French — is a track of its own, not a variant of <code>fr</code>.
+                    </p>
+                </fieldset>
+
+                <fieldset class="recette">
+                    <legend>Audio <span class="tag">not deployed</span> — <code>["audio", …]</code></legend>
+                    <div class="row" id="audio-buttons"></div>
+                    <div class="row">
+                        <input type="text" id="audio-free" placeholder="language code, e.g. en or en-ad">
+                        <button type="button" data-free="audio">Send</button>
+                    </div>
+                    <p class="hint">
+                        Selects an audio track by language. Mirrors <code>audio_lng=</code>, whose
+                        <code>-ad</code> suffix targets a language's audio description. The buttons come
+                        from <code>metadata.audio_tracks[].audio_track</code>, with its
+                        <code>label</code> and <code>kind</code> on the tooltip; a media carrying one
+                        track declares none, and <code>global.is_multiple_audio</code> is what says
+                        whether there is anything to choose from.
+                    </p>
+                </fieldset>
+
+                <fieldset class="recette">
+                    <legend>Interactions <span class="tag">not deployed</span> — <code>["interactions", …]</code></legend>
+                    <div class="row" id="interactions-buttons"></div>
+                    <div class="row">
+                        <input type="text" id="interactions-free" placeholder="language code, e.g. fr">
+                        <button type="button" data-free="interactions">Send</button>
+                    </div>
+                    <p class="hint">
+                        <code>true</code> turns interactions on in the browser language, a language code
+                        forces one, <code>null</code> turns them off. Mirrors <code>interaction=</code>.
+                        <strong>Nothing in <code>/ws/media</code> lists them</strong>, so the language
+                        buttons are the media's own <code>language_ids</code>, offered as candidates
+                        rather than discovered.
+                    </p>
+                </fieldset>
+
+                <fieldset class="recette">
+                    <legend>Chapters <span class="tag">not deployed</span> — <code>["chapters", …]</code></legend>
+                    <div class="row" id="chapters-buttons"></div>
+                    <div class="row">
+                        <input type="text" id="chapters-free" placeholder="language code, e.g. en">
+                        <button type="button" data-free="chapters">Send</button>
+                    </div>
+                    <p class="hint">
+                        <code>true</code> shows the chapters, a language code forces one,
+                        <code>false</code> hides them. Mirrors <code>chapter=</code>. The buttons come from
+                        <code>chapters[].chapter.language_id</code>. Note the disabling value:
+                        <code>false</code> here, where subtitles and interactions take <code>null</code>.
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Anything else</legend>
+                    <div class="row">
+                        <input type="text" id="raw-command" style="width:18rem"
+                               placeholder='["speed", 1.5]  —  a JSON array' value='["play"]'>
+                        <button type="button" id="raw-send">Send</button>
+                    </div>
+                    <p class="hint">
+                        Sent as written, so a value can be probed exactly: <code>["subtitles", 0]</code> is
+                        not <code>["subtitles", "0"]</code>, and neither is <code>["subtitles", null]</code>.
+                    </p>
+                </fieldset>
+            </div>
+        </div>
+
+        <div class="side">
+            <h2>Player</h2>
+            <dl class="state">
+                <dt>channel</dt><dd id="channel-value">—</dd>
+                <dt>state</dt><dd id="state-value">—</dd>
+                <dt>position</dt><dd id="position-value">—</dd>
+            </dl>
+            <h2>Messages</h2>
+            <div class="log-lines" id="log" role="log" aria-live="polite"
+                 aria-label="Messages exchanged with the player"></div>
+            <div class="log-actions">
+                <button type="button" id="log-clear">Clear</button>
+                <label><input type="checkbox" id="log-progress"> show <code>sl-progress</code></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as Streamlike from '../dist/index.mjs';
+
+    // No host: the SDK's own default, cdn.streamlike.com — production.
+    const HOST = null;
+    const containerId = 'player-container';
+
+    const form = document.getElementById('setup');
+    const input = document.getElementById('media-id-input');
+    const typeSelect = document.getElementById('type-select');
+    const factsElement = document.getElementById('media-facts');
+    const logElement = document.getElementById('log');
+    const showProgress = document.getElementById('log-progress');
+    const stateValue = document.getElementById('state-value');
+    const positionValue = document.getElementById('position-value');
+    const channelValue = document.getElementById('channel-value');
+
+    /** The last position the player reported, for the relative seeks. */
+    let position = 0;
+    /** When the player last said anything, whatever it was. */
+    let lastMessageAt = null;
+
+    /**
+     * Whether the player answers at all. A command it does not know is
+     * swallowed in silence, so silence alone proves nothing — but a channel
+     * that never opened proves the test is worthless. This tells the two
+     * apart: once anything has come back, the channel is known to work.
+     */
+    function renderChannel() {
+        if (lastMessageAt === null) {
+            channelValue.textContent = 'silent';
+            channelValue.style.color = '#b45309';
+            return;
+        }
+        channelValue.textContent = `alive \u00b7 ${Math.round((Date.now() - lastMessageAt) / 1000)} s ago`;
+        channelValue.style.color = '#047857';
+    }
+    setInterval(renderChannel, 1000);
+
+    /* ---------------- The log ---------------- */
+
+    /**
+     * Every message, in both directions. Reading what the player answers — or
+     * does not answer — is the point of the page: a command it does not know
+     * is swallowed in silence.
+     */
+    function log(direction, payload, extra = '') {
+        const line = document.createElement('div');
+        line.className = `log-line ${direction}`;
+        const arrow = direction === 'sent' ? '→' : direction === 'received' ? '←' : '·';
+        const at = new Date().toLocaleTimeString([], {hour12: false});
+        line.innerHTML = `<span class="at">${at}</span> <span class="arrow">${arrow}</span> `;
+        line.appendChild(document.createTextNode(`${payload}${extra ? ` ${extra}` : ''}`));
+        logElement.appendChild(line);
+        logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    document.getElementById('log-clear').addEventListener('click', () => logElement.innerHTML = '');
+
+    /* ---------------- Talking to the player ---------------- */
+
+    /** The player iframe, created asynchronously by the SDK: looked up each time. */
+    function playerFrame() {
+        return document.getElementById(containerId)?.querySelector('iframe') ?? null;
+    }
+
+    /**
+     * Sends a command to the player. The target is the iframe's own window —
+     * `window.postMessage` from the page would talk to the page itself — and
+     * the origin is the player's, not `*`, so the message goes nowhere else.
+     */
+    function send(command) {
+        const iframe = playerFrame();
+        const text = JSON.stringify(command);
+        if (!iframe?.contentWindow) {
+            log('note', `no player loaded, ${text} not sent`);
+            return;
+        }
+        let origin = '*';
+        try {
+            origin = new URL(iframe.src).origin;
+        } catch {
+            // A src that is not a URL yet: fall back to the wildcard
+        }
+        iframe.contentWindow.postMessage(text, origin);
+        log('sent', text);
+    }
+
+    // The player pushes back on the same channel, roughly every 250 ms while
+    // playing. Only its own frame is read: a page receives messages from every
+    // frame it holds.
+    window.addEventListener('message', event => {
+        const iframe = playerFrame();
+        if (!iframe || event.source !== iframe.contentWindow) return;
+        let data;
+        try {
+            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        } catch {
+            log('received', String(event.data), '(not JSON)');
+            return;
+        }
+        lastMessageAt = Date.now();
+        renderChannel();
+        if (Array.isArray(data) && data[0] === 'sl-state') {
+            stateValue.textContent = String(data[1]);
+        }
+        if (Array.isArray(data) && data[0] === 'sl-progress' && typeof data[1] === 'number') {
+            position = data[1];
+            positionValue.textContent = `${position.toFixed(2)} s`;
+            if (!showProgress.checked) return;
+        }
+        log('received', JSON.stringify(data));
+    });
+
+    /* ---------------- The command buttons ---------------- */
+
+    /**
+     * One button per value. `value` is sent as it is, so `null`, `true` and
+     * `false` stay what they are rather than becoming strings.
+     */
+    function addButton(container, label, command, {className = '', title = ''} = {}) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        if (className) button.className = className;
+        if (title) button.title = title;
+        button.addEventListener('click', () => send(command));
+        container.appendChild(button);
+    }
+
+    /** Says, in place of the buttons, that the media declares no such track. */
+    function addEmptyNote(container, text) {
+        const note = document.createElement('span');
+        note.className = 'empty';
+        note.textContent = text;
+        container.appendChild(note);
+    }
+
+    // The fixed commands, declared on the buttons themselves
+    for (const button of document.querySelectorAll('[data-command]')) {
+        button.addEventListener('click', () => send(JSON.parse(button.dataset.command)));
+    }
+
+    // The free field of each track family
+    for (const button of document.querySelectorAll('[data-free]')) {
+        const family = button.dataset.free;
+        const field = document.getElementById(`${family}-free`);
+        const sendFree = () => {
+            const value = field.value.trim();
+            if (value) send([family, value]);
+        };
+        button.addEventListener('click', sendFree);
+        field.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendFree();
+            }
+        });
+    }
+
+    /* ---------------- Transport ---------------- */
+
+    const volumeRange = document.getElementById('volume-range');
+    const volumeValue = document.getElementById('volume-value');
+    volumeRange.addEventListener('input', () => volumeValue.textContent = volumeRange.value);
+    document.getElementById('volume-send').addEventListener('click',
+        () => send(['volume', Number(volumeRange.value)]));
+
+    const seekValue = document.getElementById('seek-value');
+    document.getElementById('seek-send').addEventListener('click', () => {
+        const seconds = Number(seekValue.value);
+        if (Number.isFinite(seconds)) send(['seek', seconds]);
+    });
+    // Relative: from the position the player last reported, never below zero
+    document.getElementById('seek-back').addEventListener('click',
+        () => send(['seek', Math.max(0, Math.round((position - 10) * 1000) / 1000)]));
+    document.getElementById('seek-forward').addEventListener('click',
+        () => send(['seek', Math.round((position + 10) * 1000) / 1000]));
+
+    const speedValue = document.getElementById('speed-value');
+    document.getElementById('speed-send').addEventListener('click', () => {
+        const rate = Number(speedValue.value);
+        if (Number.isFinite(rate) && rate > 0) send(['speed', rate]);
+    });
+    const speedButtons = document.getElementById('speed-buttons');
+    for (const rate of [0.5, 1, 1.5, 2]) {
+        addButton(speedButtons, `${rate}×`, ['speed', rate]);
+    }
+
+    /* ---------------- Raw ---------------- */
+
+    document.getElementById('raw-send').addEventListener('click', () => {
+        const text = document.getElementById('raw-command').value.trim();
+        let command;
+        try {
+            command = JSON.parse(text);
+        } catch (error) {
+            log('note', `${text} is not valid JSON: ${error.message}`);
+            return;
+        }
+        if (!Array.isArray(command)) {
+            log('note', 'a command is a JSON array, e.g. ["speed", 1.5]');
+            return;
+        }
+        send(command);
+    });
+
+    /* ---------------- The tracks, read from /ws/media ---------------- */
+
+    /**
+     * The tracks a media declares. Absence is an absent key, never an empty
+     * list, so every container is guarded before being walked into.
+     */
+    function readTracks(media) {
+        const metadata = media?.metadata ?? {};
+        return {
+            name: metadata.global?.name ?? null,
+            multipleAudio: metadata.global?.is_multiple_audio === true,
+            // The suffix types the track: `fr-cc` is closed captions in French,
+            // a track of its own. Taken as given, never truncated, never built.
+            subtitles: (metadata.subtitles ?? [])
+                .map(entry => entry.subtitle?.language_id)
+                .filter(Boolean),
+            chapters: (metadata.chapters ?? [])
+                .map(entry => entry.chapter?.language_id)
+                .filter(Boolean),
+            audio: (metadata.audio_tracks ?? [])
+                .map(entry => entry.audio_track)
+                .filter(track => track?.language_id),
+            languages: (metadata.language_ids ?? [])
+                .map(entry => entry.language_id)
+                .filter(Boolean)
+        };
+    }
+
+    /**
+     * Builds the four sets of buttons from what the media declares, and falls
+     * back to the documented values when it declares nothing — or when there
+     * is no media to read, as for a streamout.
+     */
+    function buildCommands(media) {
+        const tracks = readTracks(media);
+
+        const subtitles = document.getElementById('subtitles-buttons');
+        subtitles.innerHTML = '';
+        for (const language of tracks.subtitles) {
+            addButton(subtitles, language, ['subtitles', language], {
+                className: 'discovered',
+                title: `subtitles[].subtitle.language_id = ${language}`
+            });
+        }
+        addButton(subtitles, 'null (off)', ['subtitles', null], {className: 'off'});
+        if (tracks.subtitles.length === 0) {
+            addEmptyNote(subtitles, media ? 'no subtitles declared' : 'no media read');
+        }
+
+        const audio = document.getElementById('audio-buttons');
+        audio.innerHTML = '';
+        for (const track of tracks.audio) {
+            const label = [track.label, track.kind].filter(Boolean).join(' · ');
+            addButton(audio, track.language_id + (track.default ? ' (default)' : ''),
+                ['audio', track.language_id], {
+                    className: 'discovered',
+                    title: label ? `${track.language_id} — ${label}` : track.language_id
+                });
+        }
+        if (tracks.audio.length === 0) {
+            for (const language of tracks.languages) {
+                addButton(audio, language, ['audio', language],
+                    {title: `from language_ids, not from audio_tracks`});
+            }
+            addEmptyNote(audio, tracks.multipleAudio
+                ? 'several audio tracks, but none declared in audio_tracks'
+                : media ? 'no audio_tracks declared' : 'no media read');
+        }
+
+        const interactions = document.getElementById('interactions-buttons');
+        interactions.innerHTML = '';
+        addButton(interactions, 'true (on)', ['interactions', true]);
+        for (const language of tracks.languages) {
+            addButton(interactions, language, ['interactions', language],
+                {title: 'from language_ids: interactions are not listed by /ws/media'});
+        }
+        if (tracks.languages.length === 0) addButton(interactions, 'fr', ['interactions', 'fr']);
+        addButton(interactions, 'null (off)', ['interactions', null], {className: 'off'});
+
+        const chapters = document.getElementById('chapters-buttons');
+        chapters.innerHTML = '';
+        addButton(chapters, 'true (on)', ['chapters', true]);
+        for (const language of tracks.chapters) {
+            addButton(chapters, language, ['chapters', language], {
+                className: 'discovered',
+                title: `chapters[].chapter.language_id = ${language}`
+            });
+        }
+        addButton(chapters, 'false (off)', ['chapters', false], {className: 'off'});
+        if (tracks.chapters.length === 0) {
+            addEmptyNote(chapters, media ? 'no chapters declared' : 'no media read');
+        }
+    }
+
+    /** What the media says of itself, so a silent command can be told from a missing track. */
+    function showFacts(media, reason) {
+        if (!media) {
+            factsElement.textContent = reason;
+            return;
+        }
+        const tracks = readTracks(media);
+        const list = values => values.length
+            ? `<code>${values.join('</code> <code>')}</code>`
+            : '<em>none</em>';
+        factsElement.innerHTML = [
+            `<strong>${tracks.name ?? 'media'}</strong>`,
+            `subtitles: ${list(tracks.subtitles)}`,
+            `chapters: ${list(tracks.chapters)}`,
+            `audio tracks: ${list(tracks.audio.map(t => t.language_id))}`,
+            `languages: ${list(tracks.languages)}`,
+            `is_multiple_audio: <code>${tracks.multipleAudio}</code>`
+        ].join(' · ');
+    }
+
+    /* ---------------- Loading ---------------- */
+
+    async function loadMedia(mediaId, typePlayerId) {
+        if (!mediaId) return;
+        document.getElementById(containerId).innerHTML = '';
+        logElement.innerHTML = '';
+        position = 0;
+        lastMessageAt = null;
+        stateValue.textContent = '—';
+        positionValue.textContent = '—';
+        renderChannel();
+        log('note', `loading ${mediaId} as ${typePlayerId} on ${HOST ?? 'cdn.streamlike.com (production)'}`);
+
+        const options = {
+            typePlayerId,
+            // `events` is what opens the channel: without it the player neither
+            // listens nor answers.
+            playerParams: {events: 1},
+            baseOptions: HOST ? {debug: true, host: HOST} : {debug: true}
+        };
+
+        const response = await Streamlike.setResponsiveIframe(mediaId, containerId, options);
+        if (!response.res) {
+            log('note', `the player could not be loaded: ${response.errors ?? 'unexpected error'}`);
+        }
+        // A streamout is embedded without a /ws/media read, so there is nothing
+        // to discover: the documented values stand on their own.
+        const media = typePlayerId === 'str_id' ? null : (response.data ?? null);
+        showFacts(media, typePlayerId === 'str_id'
+            ? 'A streamout is embedded without reading /ws/media, so there are no tracks to discover: the buttons below hold the documented values.'
+            : 'The media could not be read: the buttons below hold the documented values.');
+        buildCommands(media);
+    }
+
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        void loadMedia(input.value.trim(), typeSelect.value);
+    });
+
+    void loadMedia(input.value.trim(), typeSelect.value);
+</script>
+
+</body>
+</html>

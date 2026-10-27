@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Meta Player configurator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container { max-width: 1240px; }
+        .cfg { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 1.5rem; align-items: start; }
+        @media (max-width: 980px) { .cfg { grid-template-columns: minmax(0, 1fr); } }
+
+        .cfg-panel { display: flex; flex-direction: column; gap: .5rem; }
+        .cfg-group { border: 1px solid #e0e4e8; border-radius: 8px; background: #fff; }
+        .cfg-group > summary {
+            display: flex; align-items: center; gap: .5rem; cursor: pointer; list-style: none;
+            padding: .55rem .75rem; font-weight: 700; color: #293c5a; font-size: .9rem;
+        }
+        .cfg-group > summary::-webkit-details-marker { display: none; }
+        .cfg-group > summary::after { content: '▸'; margin-left: auto; opacity: .5; transition: transform .15s; }
+        .cfg-group[open] > summary::after { transform: rotate(90deg); }
+        .cfg-group > summary input[type="checkbox"] { accent-color: #293c5a; }
+        .cfg-body { padding: 0 .75rem .7rem; display: flex; flex-direction: column; gap: .5rem; }
+        .cfg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; font-size: .82rem; }
+        .cfg-row label { font-weight: 400; color: #374151; min-width: 0; }
+        .cfg-row .hint { display: block; font-size: .72rem; color: #9ca3af; }
+        .cfg-row input[type="number"], .cfg-row select, .cfg-row input[type="text"] {
+            width: 7.5rem; padding: .25rem .4rem; border: 1px solid #d5dae0; border-radius: 4px; font-size: .8rem;
+        }
+        .cfg-row input[type="color"] { width: 2.4rem; height: 1.7rem; padding: 0; border: 1px solid #d5dae0; border-radius: 4px; background: none; }
+        .cfg-row input[type="checkbox"] { accent-color: #293c5a; }
+        .cfg-group.off .cfg-body { opacity: .4; pointer-events: none; }
+
+        .cfg-out { margin-top: 1rem; position: relative; }
+        .cfg-out h2 { font-size: .95rem; color: #293c5a; margin: 0 0 .4rem; }
+        .cfg-out pre {
+            margin: 0; padding: .8rem .9rem; border-radius: 8px; overflow-x: auto;
+            background: #0f172a; color: #e2e8f0; font-size: .78rem; line-height: 1.6;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .cfg-copy { position: absolute; top: 1.9rem; right: .5rem; font-size: .75rem; padding: .25rem .6rem; }
+        .cfg-note { font-size: .78rem; color: #6b7280; margin: .5rem 0 0; line-height: 1.6; }
+        .cfg-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+        .cfg-actions button { font-size: .8rem; padding: .35rem .7rem; }
+        #meta-player .sl-meta { --sl-meta-radius: 8px; }
+
+        .data { margin-top: 1.25rem; }
+        .data-tabs { display: flex; gap: .3rem; align-items: center; margin-bottom: .5rem; }
+        .data-tabs h2 { font-size: .95rem; color: #293c5a; margin: 0 auto 0 0; }
+        .data-tabs button { font-size: .8rem; padding: .3rem .8rem; background: #e5e9ee; color: #374151; }
+        .data-tabs button[aria-pressed="true"] { background: #293c5a; color: #fff; }
+        .data-pane { border: 1px solid #e0e4e8; border-radius: 8px; background: #fff; padding: .85rem; }
+        .data-pane[hidden] { display: none; }
+
+        .data-layer + .data-layer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eef1f4; }
+        .data-layer > header { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+        .data-layer > header h3 { margin: 0; font-size: .85rem; color: #293c5a; }
+        .data-layer > header .count { font-size: .75rem; color: #9ca3af; }
+        .data-layer > header button { margin-left: auto; font-size: .75rem; padding: .25rem .6rem; }
+        .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .5rem; }
+        .item { border: 1px solid #e5e9ee; border-radius: 6px; padding: .5rem; background: #fafbfc; position: relative; }
+        .item .fields { display: flex; flex-wrap: wrap; gap: .3rem .45rem; }
+        .item .f { display: inline-flex; flex-direction: column; gap: .1rem; }
+        .item .f span { font-size: .65rem; color: #9ca3af; font-family: ui-monospace, Menlo, monospace; }
+        .item .f input { width: 3.6rem; padding: .18rem .3rem; border: 1px solid #d5dae0; border-radius: 3px; font-size: .78rem; }
+        .item .f.wide { flex: 1 1 100%; }
+        .item .f.wide input { width: 100%; }
+        .item .drop {
+            position: absolute; top: .3rem; right: .3rem; width: 1.3rem; height: 1.3rem; padding: 0;
+            font-size: .8rem; line-height: 1; background: #e5e9ee; color: #6b7280;
+        }
+        .item .drop:hover { background: #dc2626; color: #fff; }
+        .curve-field { display: flex; flex-direction: column; gap: .3rem; }
+        .curve-field textarea, #json {
+            width: 100%; border: 1px solid #d5dae0; border-radius: 6px; padding: .5rem .6rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; line-height: 1.6;
+            resize: vertical;
+        }
+        #json { min-height: 22rem; }
+        .json-actions { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+        .json-actions button { font-size: .8rem; padding: .35rem .8rem; }
+        .json-error { font-size: .8rem; color: #b91c1c; min-height: 1.2em; }
+        .json-error.ok { color: #047857; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Meta Player configurator</h1>
+    <p>
+        Every option of <code>generateMetaPlayer</code>, on a live player. The panel rebuilds it at
+        each change and writes, under the picture, <strong>the options that differ from the
+        defaults</strong> — the snippet to paste, not a dump of everything the SDK already does.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <form id="media-form">
+        <label for="media-id-input">Media ID:</label>
+        <input type="text" id="media-id-input" required value="448ea8e7ea497707">
+        <button type="submit">Load</button>
+    </form>
+
+    <hr>
+
+    <div class="cfg">
+        <div>
+            <div id="meta-player"></div>
+            <section class="data">
+                <div class="data-tabs">
+                    <h2>Data sent to the player</h2>
+                    <button type="button" id="tab-form" aria-pressed="true">Form</button>
+                    <button type="button" id="tab-json" aria-pressed="false">JSON</button>
+                </div>
+                <div class="data-pane" id="pane-form"></div>
+                <div class="data-pane" id="pane-json" hidden>
+                    <textarea id="json" spellcheck="false" aria-label="Data as JSON"></textarea>
+                    <div class="json-actions">
+                        <button type="button" id="json-apply">Apply</button>
+                        <button type="button" id="json-revert">Revert</button>
+                        <span class="json-error" id="json-error"></span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="cfg-out">
+                <h2>generateMetaPlayer</h2>
+                <button type="button" class="cfg-copy" id="copy">Copy</button>
+                <pre id="snippet">…</pre>
+                <p class="cfg-note" id="note"></p>
+            </div>
+        </div>
+        <aside class="cfg-panel" id="panel"></aside>
+    </div>
+</div>
+
+<script type="module">
+    import {generateMetaPlayer, audienceBuckets} from '../dist/index.mjs';
+
+    /* ================= The sample content ================= */
+
+    /**
+     * The data the player is given: the items of each layer, and the audience
+     * curve. Everything here is editable, by the form or as JSON — the panel
+     * on the right holds the *settings*, this holds the *content*.
+     */
+    const SAMPLE_DATA = {
+        comments: [
+            {id: 1, at: 8,   author: 'Ada', text: 'Le logo arrive une demi-seconde trop tard.'},
+            {id: 2, at: 9.2, author: 'Bob', text: "D'accord, et le fondu est trop long."},
+            {id: 3, at: 10,  author: 'Cyd', text: 'On garde cette prise.'},
+            {id: 4, at: 62,  author: 'Ada', text: 'Faute de frappe sur le synthé.'},
+            {id: 5, at: 128, author: 'Dai', text: 'Baisser la musique sous la voix.'}
+        ],
+        chapters: [
+            {id: 'c1', from: 0,   to: 65,  label: 'Ouverture'},
+            {id: 'c2', from: 65,  to: 140, label: 'Démonstration'},
+            {id: 'c3', from: 140, to: 195, label: 'Conclusion'}
+        ],
+        tags: [
+            {id: 't1', from: 0, to: 195, x: 0.5,  y: 0.46, label: 'logo'},
+            {id: 't2', from: 0, to: 195, x: 0.08, y: 0.68, w: 0.42, h: 0.18, label: 'synthé'}
+        ],
+        curve: []
+    };
+
+    const ICONS = {
+        comments: '<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/></svg>',
+        chapters: '<svg viewBox="0 0 24 24"><path d="M3 5h18v3H3zm0 5.5h18v3H3zM3 16h11v3H3z"/></svg>',
+        tags: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>'
+    };
+    const LABELS_FR = {
+        play: 'Lecture', pause: 'Pause', progress: 'Position dans le média',
+        jog: 'Molette de défilement : glisser, faire défiler, ou les flèches',
+        backward: 'arrière', forward: 'avant',
+        speed: 'Vitesse de lecture', slower: 'Ralentir', faster: 'Accélérer', normalSpeed: 'Revenir à 1×',
+        zoomOut: 'Dézoomer', zoomIn: 'Zoomer', zoomReset: "Revenir à l'image entière",
+        previousFrame: 'Image précédente', nextFrame: 'Image suivante',
+        mute: 'Couper le son', unmute: 'Rétablir le son', volume: 'Volume',
+        fullscreen: 'Plein écran', exitFullscreen: 'Quitter le plein écran',
+        audience: 'audience', view: 'vue', views: 'vues',
+        noAudience: "Courbe d'audience pas encore disponible",
+        layers: 'Calques', more: 'et {count} de plus', error: 'Impossible de charger le média.',
+        help: "Mode d'emploi", closeHelp: 'Fermer',
+        hint: "Molette : glisser ou faire défiler (Maj : réglage fin) · ← → 1 s, Maj 5 s, Page ±30 s, "
+            + "« , » « . » une image · Espace : lecture · Image : molette pour zoomer, glisser pour se "
+            + "déplacer, double clic pour revenir"
+    };
+
+    /** Stands in for a backend: playback counts per slice, never percentages. */
+    function sampleCurve(duration) {
+        const seconds = {};
+        for (let s = 0; s < duration; s++) {
+            seconds[s] = Math.max(1, Math.round(
+                900 * Math.exp(-s / (duration * 0.75))
+                + 420 * Math.exp(-((s - duration * 0.34) ** 2) / 90)
+                + 260 * Math.exp(-((s - duration * 0.78) ** 2) / 60)));
+        }
+        return audienceBuckets(seconds, duration);
+    }
+
+    /* ================= The options, and their defaults ================= */
+
+    /**
+     * Every control carries the SDK's own default. What the snippet prints is
+     * whatever differs from it — which is the whole point: a configurator that
+     * echoes the defaults back teaches nothing.
+     */
+    const GROUPS = [
+        {
+            key: 'jog', label: 'Jog wheel', toggle: true, on: true,
+            controls: [
+                {key: 'pace', label: 'pace', hint: 'duration divided by this gives s/px', type: 'number', def: 6000, step: 500},
+                {key: 'minSecPerPx', label: 'minSecPerPx', type: 'number', def: 0.03, step: 0.01},
+                {key: 'maxSecPerPx', label: 'maxSecPerPx', type: 'number', def: 0.35, step: 0.05},
+                {key: 'fineFactor', label: 'fineFactor', hint: 'with Shift held', type: 'number', def: 0.2, step: 0.05},
+                {key: 'inertia', label: 'inertia', hint: 'decay constant, seconds', type: 'number', def: 0.55, step: 0.05},
+                {key: 'maxVelocity', label: 'maxVelocity', type: 'number', def: 240, step: 20},
+                {key: 'readout', label: 'readout', type: 'bool', def: true},
+                {key: 'preciseReadout', label: 'preciseReadout', hint: 'to the hundredth', type: 'bool', def: true},
+                {key: 'directions', label: 'directions', type: 'bool', def: true}
+            ]
+        },
+        {
+            key: 'speed', label: 'Speed', toggle: true, on: true,
+            controls: [
+                {key: 'speeds', label: 'speeds', type: 'select', def: 'default', options: {
+                    default: '21 notches (default)', short: '0.25 · 0.5 · 1 · 2 · 4', slow: '0.1 → 1, slow work'}},
+                {key: 'initial', label: 'initial', type: 'number', def: 1, step: 0.25},
+                {key: 'buttons', label: 'buttons', hint: '− / + beside the readout', type: 'bool', def: true},
+                {key: 'wheel', label: 'wheel', type: 'bool', def: true},
+                {key: 'decimals', label: 'decimals', type: 'number', def: 2, step: 1}
+            ]
+        },
+        {
+            key: 'zoom', label: 'Zoom', toggle: true, on: true,
+            controls: [
+                {key: 'maxOversample', label: 'maxOversample', hint: 'times the stream definition', type: 'number', def: 3, step: 1},
+                {key: 'streamHeight', label: 'streamHeight', type: 'number', def: 1080, step: 180},
+                {key: 'step', label: 'step', hint: 'factor of the − / + buttons', type: 'number', def: 1.5, step: 0.1},
+                {key: 'wheel', label: 'wheel', type: 'bool', def: true},
+                {key: 'pinch', label: 'pinch', type: 'bool', def: true},
+                {key: 'buttons', label: 'buttons', type: 'bool', def: true},
+                {key: 'resetButton', label: 'resetButton', type: 'bool', def: true},
+                {key: 'clickTogglesPlay', label: 'clickTogglesPlay', type: 'bool', def: true},
+                {key: 'doubleClickResets', label: 'doubleClickResets', type: 'bool', def: true}
+            ]
+        },
+        {
+            key: 'audience', label: 'Audience curve', toggle: true, on: true,
+            controls: [
+                {key: 'display', label: 'display', type: 'select', def: 'peek', options: {peek: 'peek', always: 'always'}},
+                {key: 'height', label: 'height', type: 'number', def: 40, step: 4},
+                {key: 'smoothing', label: 'smoothing', type: 'number', def: 0.6, step: 0.1},
+                {key: 'tooltip', label: 'tooltip', type: 'bool', def: true}
+            ]
+        },
+        {
+            key: 'transport', label: 'Control bar', toggle: false,
+            controls: [
+                {key: 'play', label: 'play', type: 'bool', def: true},
+                {key: 'progress', label: 'progress', type: 'bool', def: true},
+                {key: 'elapsed', label: 'elapsed', type: 'bool', def: true},
+                {key: 'remaining', label: 'remaining', type: 'bool', def: true},
+                {key: 'volume', label: 'volume', type: 'bool', def: true},
+                {key: 'fullscreen', label: 'fullscreen', type: 'bool', def: true},
+                {key: 'frameSteps', label: 'frameSteps', type: 'bool', def: true},
+                {key: 'layerToggles', label: 'layerToggles', type: 'bool', def: false},
+                {key: 'help', label: 'help', hint: 'the (?) button', type: 'bool', def: true}
+            ]
+        },
+        {
+            key: 'theme', label: 'Theme', toggle: false,
+            controls: [
+                {key: 'bar', label: 'bar', type: 'color', def: '#111827'},
+                {key: 'text', label: 'text', type: 'color', def: '#ffffff'},
+                {key: 'accent', label: 'accent', type: 'color', def: '#fbbf24'},
+                {key: 'accentText', label: 'accentText', type: 'color', def: '#1f2937'},
+                {key: 'backdrop', label: 'backdrop', type: 'color', def: '#000000'},
+                {key: 'radius', label: 'radius', type: 'text', def: '10px'}
+            ]
+        },
+        {
+            key: 'root', label: 'The player itself', toggle: false,
+            controls: [
+                {key: 'keyboard', label: 'keyboard', type: 'bool', def: true},
+                {key: 'primeOnSeek', label: 'primeOnSeek', hint: 'silent start so seeks land', type: 'bool', def: true},
+                {key: 'showHours', label: 'showHours', type: 'bool', def: false},
+                {key: 'autostart', label: 'autostart', type: 'bool', def: false},
+                {key: 'french', label: 'labels + locale in French', type: 'bool', def: false}
+            ]
+        }
+    ];
+
+    /** The three sample layers, each switchable and each with its own render mode. */
+    const LAYERS = [
+        {key: 'comments', label: 'Commentaires', on: true, render: 'timeline', color: '#44b0a7'},
+        {key: 'chapters', label: 'Chapitres', on: true, render: 'timeline', color: '#60a5fa'},
+        {key: 'tags', label: 'Repères', on: true, render: 'both', color: '#fbbf24'}
+    ];
+
+    /** The live data, deep-copied so "back to the defaults" has something to go back to. */
+    let data = structuredClone(SAMPLE_DATA);
+
+    const SPEED_SETS = {
+        short: [0.25, 0.5, 1, 2, 4],
+        slow: [0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1]
+    };
+
+    /* ================= State ================= */
+
+    const state = {};
+    for (const group of GROUPS) {
+        state[group.key] = {on: group.on ?? true};
+        for (const control of group.controls) state[group.key][control.key] = control.def;
+    }
+    const layerState = LAYERS.map(layer => ({...layer}));
+
+    /* ================= The panel ================= */
+
+    const panel = document.getElementById('panel');
+    let rebuildTimer = null;
+
+    /** A change redraws the player, but not twice for one drag of a colour picker. */
+    function changed() {
+        if (rebuildTimer !== null) clearTimeout(rebuildTimer);
+        rebuildTimer = setTimeout(() => {
+            rebuildTimer = null;
+            void rebuild();
+        }, 120);
+        writeSnippet();
+    }
+
+    function control(group, spec) {
+        const row = document.createElement('div');
+        row.className = 'cfg-row';
+        const id = `cfg-${group.key}-${spec.key}`;
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        label.innerHTML = `<code>${spec.label}</code>${spec.hint ? `<span class="hint">${spec.hint}</span>` : ''}`;
+        row.appendChild(label);
+
+        let field;
+        if (spec.type === 'bool') {
+            field = document.createElement('input');
+            field.type = 'checkbox';
+            field.checked = Boolean(state[group.key][spec.key]);
+            field.addEventListener('change', () => {
+                state[group.key][spec.key] = field.checked;
+                changed();
+            });
+        } else if (spec.type === 'select') {
+            field = document.createElement('select');
+            for (const [value, text] of Object.entries(spec.options)) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                field.appendChild(option);
+            }
+            field.value = state[group.key][spec.key];
+            field.addEventListener('change', () => {
+                state[group.key][spec.key] = field.value;
+                changed();
+            });
+        } else {
+            field = document.createElement('input');
+            field.type = spec.type === 'color' ? 'color' : spec.type === 'number' ? 'number' : 'text';
+            if (spec.step) field.step = String(spec.step);
+            field.value = state[group.key][spec.key];
+            field.addEventListener('input', () => {
+                state[group.key][spec.key] = spec.type === 'number' ? Number(field.value) : field.value;
+                changed();
+            });
+        }
+        field.id = id;
+        row.appendChild(field);
+        return row;
+    }
+
+    function buildPanel() {
+        panel.innerHTML = '';
+
+        for (const group of GROUPS) {
+            const details = document.createElement('details');
+            details.className = 'cfg-group';
+            // The first group opens, so the panel shows what a group holds
+            // instead of a column of closed rows
+            details.open = group === GROUPS[0];
+            const summary = document.createElement('summary');
+            if (group.toggle) {
+                const on = document.createElement('input');
+                on.type = 'checkbox';
+                on.checked = state[group.key].on;
+                on.addEventListener('click', event => event.stopPropagation());
+                on.addEventListener('change', () => {
+                    state[group.key].on = on.checked;
+                    details.classList.toggle('off', !on.checked);
+                    changed();
+                });
+                summary.appendChild(on);
+            }
+            summary.appendChild(document.createTextNode(group.label));
+            details.appendChild(summary);
+            details.classList.toggle('off', group.toggle && !state[group.key].on);
+
+            const body = document.createElement('div');
+            body.className = 'cfg-body';
+            for (const spec of group.controls) body.appendChild(control(group, spec));
+            details.appendChild(body);
+            panel.appendChild(details);
+        }
+
+        // The layers, which are a list rather than a flat set of options
+        const details = document.createElement('details');
+        details.className = 'cfg-group';
+        details.open = true;
+        const summary = document.createElement('summary');
+        summary.textContent = 'Layers';
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'cfg-body';
+        for (const layer of layerState) {
+            const row = document.createElement('div');
+            row.className = 'cfg-row';
+            const label = document.createElement('label');
+            const on = document.createElement('input');
+            on.type = 'checkbox';
+            on.checked = layer.on;
+            on.addEventListener('change', () => {
+                layer.on = on.checked;
+                changed();
+            });
+            label.append(on, document.createTextNode(' ' + layer.label));
+            label.style.display = 'inline-flex';
+            label.style.alignItems = 'center';
+            label.style.gap = '.35rem';
+
+            const right = document.createElement('span');
+            right.style.display = 'inline-flex';
+            right.style.gap = '.3rem';
+            const render = document.createElement('select');
+            for (const [value, text] of Object.entries({timeline: 'timeline', stage: 'stage', both: 'both'})) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                render.appendChild(option);
+            }
+            render.value = layer.render;
+            render.style.width = '5.5rem';
+            render.addEventListener('change', () => {
+                layer.render = render.value;
+                changed();
+            });
+            const colour = document.createElement('input');
+            colour.type = 'color';
+            colour.value = layer.color;
+            colour.addEventListener('input', () => {
+                layer.color = colour.value;
+                changed();
+            });
+            right.append(render, colour);
+            row.append(label, right);
+            body.appendChild(row);
+        }
+        const note = document.createElement('p');
+        note.className = 'cfg-note';
+        note.textContent = 'Three lanes are drawn at most; a layer past that keeps its items and its '
+            + 'stage shapes without taking a lane.';
+        body.appendChild(note);
+        details.appendChild(body);
+        panel.appendChild(details);
+
+        const actions = document.createElement('div');
+        actions.className = 'cfg-actions';
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.textContent = 'Back to the defaults';
+        reset.addEventListener('click', () => {
+            for (const group of GROUPS) {
+                state[group.key].on = group.on ?? true;
+                for (const spec of group.controls) state[group.key][spec.key] = spec.def;
+            }
+            LAYERS.forEach((layer, index) => Object.assign(layerState[index], layer));
+            data = structuredClone(SAMPLE_DATA);
+            buildPanel();
+            renderDataForm();
+            syncJson();
+            changed();
+        });
+        actions.appendChild(reset);
+        panel.appendChild(actions);
+    }
+
+    /* ================= From state to options ================= */
+
+    function speedsOf(name) {
+        return name === 'default' ? undefined : SPEED_SETS[name];
+    }
+
+    function layersOption() {
+        return layerState.filter(layer => layer.on).map(layer => ({
+            id: layer.key,
+            label: layer.label,
+            icon: ICONS[layer.key],
+            render: layer.render,
+            color: layer.color,
+            items: data[layer.key] ?? []
+        }));
+    }
+
+    /** Only what differs from the SDK's default, which is what you would write. */
+    function diffOf(group) {
+        const out = {};
+        for (const spec of group.controls) {
+            const value = state[group.key][spec.key];
+            if (spec.key === 'speeds') {
+                if (value !== 'default') out.speeds = SPEED_SETS[value];
+                continue;
+            }
+            if (value !== spec.def) out[spec.key] = value;
+        }
+        return out;
+    }
+
+    function buildOptions(mediaId, startAt) {
+        const root = diffOf(GROUPS.find(g => g.key === 'root'));
+        const options = {
+            mediaId,
+            startAt,
+            layers: layersOption()
+        };
+
+        for (const key of ['jog', 'speed', 'zoom', 'audience']) {
+            const group = GROUPS.find(g => g.key === key);
+            if (!state[key].on) {
+                options[key] = false;
+                continue;
+            }
+            const diff = diffOf(group);
+            if (key === 'audience') {
+                diff.curve = data.curve.length > 0 ? data.curve : sampleCurve(player?.getDuration() || 195);
+                options.audience = diff;
+            } else if (Object.keys(diff).length > 0) {
+                options[key] = diff;
+            }
+        }
+
+        const transport = diffOf(GROUPS.find(g => g.key === 'transport'));
+        if (Object.keys(transport).length > 0) options.transport = transport;
+
+        const theme = diffOf(GROUPS.find(g => g.key === 'theme'));
+        if (Object.keys(theme).length > 0) options.theme = theme;
+
+        if (root.keyboard === false) options.keyboard = false;
+        if (root.primeOnSeek === false) options.primeOnSeek = false;
+        if (root.showHours) options.showHours = true;
+        if (root.autostart) options.autostart = true;
+        if (root.french) {
+            options.locale = 'fr-FR';
+            options.labels = LABELS_FR;
+        }
+        return options;
+    }
+
+    /* ================= The snippet ================= */
+
+    function write(value, indent) {
+        const pad = '    '.repeat(indent);
+        const padIn = '    '.repeat(indent + 1);
+        if (Array.isArray(value)) {
+            if (value.length === 0) return '[]';
+            if (value.every(v => typeof v === 'number')) return `[${value.join(', ')}]`;
+            return `[\n${value.map(v => padIn + write(v, indent + 1)).join(',\n')}\n${pad}]`;
+        }
+        if (value && typeof value === 'object') {
+            const entries = Object.entries(value);
+            if (entries.length === 0) return '{}';
+            return `{\n${entries.map(([k, v]) => `${padIn}${k}: ${write(v, indent + 1)}`).join(',\n')}\n${pad}}`;
+        }
+        return typeof value === 'string' ? `'${value.replace(/'/g, "\\'")}'` : String(value);
+    }
+
+    function writeSnippet() {
+        const mediaId = document.getElementById('media-id-input').value.trim();
+        const options = buildOptions(mediaId, Math.round(player?.getTime() ?? 0));
+        // What the snippet shows stands for the integration's own data
+        const shown = {...options, startAt: undefined};
+        delete shown.startAt;
+        if (shown.audience?.curve) shown.audience = {...shown.audience, curve: '…audienceBuckets(report, duration)'};
+        shown.layers = shown.layers.map(layer => ({...layer, icon: '…<svg>…', items: `…${layer.id}`}));
+        if (shown.labels) shown.labels = '…LABELS_FR';
+
+        const body = Object.entries(shown)
+            .map(([key, value]) => `    ${key}: ${write(value, 1)}`)
+            .join(',\n');
+        document.getElementById('snippet').textContent =
+            `const player = await generateMetaPlayer('player', {\n${body}\n});`;
+
+        const total = Object.keys(shown).length;
+        document.getElementById('note').textContent =
+            `${total} option${total > 1 ? 's' : ''} written; everything left out keeps its default. `
+            + `Strings in ellipsis stand for your own data.`;
+    }
+
+    /* ================= Building the player ================= */
+
+    let player = null;
+
+    async function rebuild() {
+        const mediaId = document.getElementById('media-id-input').value.trim();
+        if (!mediaId) return;
+        // Keep the viewer where they were rather than restarting at zero
+        const at = Math.round(player?.getTime() ?? 0);
+        player?.destroy();
+        player = await generateMetaPlayer('meta-player', buildOptions(mediaId, at));
+        if (!player.res) {
+            document.getElementById('meta-player').textContent = player.errors ?? 'Unable to load the media.';
+        }
+        writeSnippet();
+    }
+
+    document.getElementById('copy').addEventListener('click', async event => {
+        const button = event.currentTarget;
+        try {
+            await navigator.clipboard.writeText(document.getElementById('snippet').textContent);
+            button.textContent = 'Copied';
+        } catch {
+            // Clipboard refused: select the text so it can be copied by hand
+            const range = document.createRange();
+            range.selectNodeContents(document.getElementById('snippet'));
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            button.textContent = 'Selected';
+        }
+        setTimeout(() => button.textContent = 'Copy', 1500);
+    });
+
+    document.getElementById('media-form').addEventListener('submit', event => {
+        event.preventDefault();
+        player?.destroy();
+        player = null;
+        void rebuild();
+    });
+
+
+    /* ================= The data editor ================= */
+
+    const paneForm = document.getElementById('pane-form');
+    const paneJson = document.getElementById('pane-json');
+    const jsonField = document.getElementById('json');
+    const jsonError = document.getElementById('json-error');
+
+    /** The fields a row offers. The time is always there; the rest follows the shape. */
+    const ITEM_FIELDS = [
+        {key: 'id', label: 'id', type: 'text', width: '4.5rem'},
+        {key: 'at', label: 'at', type: 'number', step: 0.1},
+        {key: 'from', label: 'from', type: 'number', step: 0.1},
+        {key: 'to', label: 'to', type: 'number', step: 0.1},
+        {key: 'x', label: 'x', type: 'number', step: 0.01},
+        {key: 'y', label: 'y', type: 'number', step: 0.01},
+        {key: 'w', label: 'w', type: 'number', step: 0.01},
+        {key: 'h', label: 'h', type: 'number', step: 0.01},
+        {key: 'label', label: 'label', type: 'text', wide: true},
+        {key: 'author', label: 'author', type: 'text', wide: true},
+        {key: 'text', label: 'text', type: 'text', wide: true}
+    ];
+
+    /**
+     * A data change redraws the player and rewrites the JSON, so the two views
+     * never drift apart.
+     */
+    function dataChanged({form = false} = {}) {
+        syncJson();
+        if (form) renderDataForm();
+        changed();
+    }
+
+    function syncJson() {
+        jsonField.value = JSON.stringify(data, null, 2);
+    }
+
+    /** One editable item. An empty field removes the key rather than storing "". */
+    function itemCard(layerKey, item, index) {
+        const card = document.createElement('div');
+        card.className = 'item';
+
+        const drop = document.createElement('button');
+        drop.type = 'button';
+        drop.className = 'drop';
+        drop.textContent = '\u2715';
+        drop.title = 'Remove';
+        drop.setAttribute('aria-label', `Remove item ${index + 1}`);
+        drop.addEventListener('click', () => {
+            data[layerKey].splice(index, 1);
+            dataChanged({form: true});
+        });
+        card.appendChild(drop);
+
+        const fields = document.createElement('div');
+        fields.className = 'fields';
+        for (const spec of ITEM_FIELDS) {
+            // Only the keys this item actually uses, so a comment does not
+            // sprout four position fields it will never fill
+            if (!(spec.key in item)) continue;
+            const wrap = document.createElement('label');
+            wrap.className = `f${spec.wide ? ' wide' : ''}`;
+            const name = document.createElement('span');
+            name.textContent = spec.label;
+            const input = document.createElement('input');
+            input.type = spec.type;
+            if (spec.step) input.step = String(spec.step);
+            if (spec.width) input.style.width = spec.width;
+            input.value = item[spec.key] ?? '';
+            input.addEventListener('input', () => {
+                const raw = input.value.trim();
+                if (raw === '') delete item[spec.key];
+                else item[spec.key] = spec.type === 'number' ? Number(raw) : raw;
+                dataChanged();
+            });
+            wrap.append(name, input);
+            fields.appendChild(wrap);
+        }
+        card.appendChild(fields);
+        return card;
+    }
+
+    /** The shape a new item takes, copied from the last one of its layer. */
+    function blankItem(layerKey) {
+        const last = data[layerKey]?.[data[layerKey].length - 1];
+        const at = Math.round((player?.getTime() ?? 0) * 10) / 10;
+        if (!last) return {id: `${layerKey}-1`, at, label: ''};
+        const next = {};
+        for (const key of Object.keys(last)) {
+            if (key === 'id') next.id = `${layerKey}-${data[layerKey].length + 1}`;
+            else if (key === 'at') next.at = at;
+            else if (key === 'from') next.from = at;
+            else if (key === 'to') next.to = at + 10;
+            else next[key] = typeof last[key] === 'number' ? last[key] : '';
+        }
+        return next;
+    }
+
+    function renderDataForm() {
+        paneForm.innerHTML = '';
+
+        for (const layer of layerState) {
+            const items = data[layer.key] ?? (data[layer.key] = []);
+            const block = document.createElement('div');
+            block.className = 'data-layer';
+
+            const header = document.createElement('header');
+            const title = document.createElement('h3');
+            title.textContent = layer.label;
+            const count = document.createElement('span');
+            count.className = 'count';
+            count.textContent = `${items.length} item${items.length === 1 ? '' : 's'}`
+                + (layer.on ? '' : ' \u00b7 layer off');
+            const add = document.createElement('button');
+            add.type = 'button';
+            add.textContent = '+ item';
+            add.addEventListener('click', () => {
+                items.push(blankItem(layer.key));
+                dataChanged({form: true});
+            });
+            header.append(title, count, add);
+            block.appendChild(header);
+
+            const list = document.createElement('div');
+            list.className = 'items';
+            items.forEach((item, index) => list.appendChild(itemCard(layer.key, item, index)));
+            block.appendChild(list);
+            paneForm.appendChild(block);
+        }
+
+        // The audience curve: playback counts, one per slice
+        const block = document.createElement('div');
+        block.className = 'data-layer';
+        const header = document.createElement('header');
+        const title = document.createElement('h3');
+        title.textContent = 'Audience curve';
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = data.curve.length > 0
+            ? `${data.curve.length} slices \u00b7 up to ${Math.max(...data.curve)} views`
+            : 'empty \u00b7 a sample curve is used';
+        const fill = document.createElement('button');
+        fill.type = 'button';
+        fill.textContent = 'Sample';
+        fill.addEventListener('click', () => {
+            data.curve = sampleCurve(player?.getDuration() || 195);
+            dataChanged({form: true});
+        });
+        header.append(title, count, fill);
+        block.appendChild(header);
+
+        const field = document.createElement('div');
+        field.className = 'curve-field';
+        const area = document.createElement('textarea');
+        area.rows = 3;
+        area.spellcheck = false;
+        area.setAttribute('aria-label', 'Audience curve, playback counts');
+        area.placeholder = 'Playback counts, one per slice: 820, 790, 640, …';
+        area.value = data.curve.join(', ');
+        area.addEventListener('input', () => {
+            data.curve = area.value.split(/[\s,;]+/).filter(Boolean).map(Number).filter(Number.isFinite);
+            syncJson();
+            changed();
+        });
+        const note = document.createElement('p');
+        note.className = 'cfg-note';
+        note.style.margin = '0';
+        note.textContent = 'Playback counts, never percentages: the height already shows where the '
+            + 'views are, and the figure a viewer reads has to be a count. Empty falls back to a sample.';
+        field.append(area, note);
+        block.appendChild(field);
+        paneForm.appendChild(block);
+    }
+
+    /* ---- the JSON side ---- */
+
+    /** Says what is wrong rather than throwing, and never half-applies. */
+    function validate(next) {
+        if (!next || typeof next !== 'object' || Array.isArray(next)) return 'The data must be an object.';
+        for (const layer of layerState) {
+            const items = next[layer.key];
+            if (items === undefined) continue;
+            if (!Array.isArray(items)) return `"${layer.key}" must be an array of items.`;
+            for (const [index, item] of items.entries()) {
+                if (!item || typeof item !== 'object' || Array.isArray(item)) {
+                    return `"${layer.key}"[${index}] must be an object.`;
+                }
+                const timed = ['at', 'from', 'to'].some(key => typeof item[key] === 'number');
+                if (!timed) return `"${layer.key}"[${index}] needs a time: at, or from and to.`;
+            }
+        }
+        if (next.curve !== undefined) {
+            if (!Array.isArray(next.curve) || next.curve.some(v => typeof v !== 'number' || !Number.isFinite(v))) {
+                return '"curve" must be an array of numbers — playback counts.';
+            }
+        }
+        return null;
+    }
+
+    function applyJson() {
+        let parsed;
+        try {
+            parsed = JSON.parse(jsonField.value);
+        } catch (error) {
+            jsonError.className = 'json-error';
+            jsonError.textContent = `Not valid JSON: ${error.message}`;
+            return;
+        }
+        const problem = validate(parsed);
+        if (problem) {
+            jsonError.className = 'json-error';
+            jsonError.textContent = problem;
+            return;
+        }
+        data = parsed;
+        for (const layer of layerState) data[layer.key] ??= [];
+        data.curve ??= [];
+        jsonError.className = 'json-error ok';
+        jsonError.textContent = 'Applied.';
+        renderDataForm();
+        changed();
+    }
+
+    document.getElementById('json-apply').addEventListener('click', applyJson);
+    document.getElementById('json-revert').addEventListener('click', () => {
+        syncJson();
+        jsonError.className = 'json-error';
+        jsonError.textContent = '';
+    });
+
+    const tabForm = document.getElementById('tab-form');
+    const tabJson = document.getElementById('tab-json');
+    function showTab(json) {
+        paneJson.hidden = !json;
+        paneForm.hidden = json;
+        tabJson.setAttribute('aria-pressed', String(json));
+        tabForm.setAttribute('aria-pressed', String(!json));
+        if (json) syncJson();
+    }
+    tabForm.addEventListener('click', () => showTab(false));
+    tabJson.addEventListener('click', () => showTab(true));
+
+    buildPanel();
+    renderDataForm();
+    syncJson();
+    void rebuild();
+</script>
+
+</body>
+</html>
