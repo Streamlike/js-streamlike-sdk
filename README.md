@@ -99,6 +99,25 @@ Use the `setResponsiveIframe` function to embed a video player in an HTML contai
 </script>
 ```
 
+#### Blurred backdrop for vertical videos
+A media narrower than its frame normally shows black bars on its sides. With the `backdrop` option, it stays centred in its own format and a blurred, enlarged version of itself fills the frame, following the playback through the frames of the storyboard:
+
+```js
+setResponsiveIframe(mediaId, containerId, {
+    backdrop: {
+        source: 'mosaic', // or 'cover', for a backdrop that never moves
+        ratio: 16 / 9,    // the frame: a media at least as wide plays as usual
+        blur: 30,         // radius of the blur, in pixels
+        brightness: 0.7,
+        mosaicSize: 'large' // the other size is read if this one is missing
+    }
+});
+```
+
+`backdrop: true` applies these defaults. With `source: 'mosaic'` the player is loaded with `events` enabled. The storyboard holds about one frame per second, so the backdrop moves in soft steps; until the first frame, and on a media without storyboard, it shows the cover.
+
+The backdrop lives in your page, around the iframe: **the fullscreen of the player applies to the iframe alone and shows the video without it**. The `demo/backdrop.html` page lets you try the settings.
+
 ### 2. Display a playlist
 Fetch the media from a playlist with `getMediasFromPlaylist` and display them. This example creates a mosaic of thumbnails.
 
@@ -696,6 +715,7 @@ own markers or writing its own controls: `audienceBuckets`, `curvePath`, `curveA
 - `PlaylistMetadata`: Interface for playlist metadata (ID, name, description, size, total duration, view position, `degraded` when a search was not applied).
 - `PlaylistParams`: Query parameters of `/ws/playlist` (paging, sorting, `query`, exclusions, `forceplaylist`, `encoding_version`, `multiple_audio`).
 - `IframeOptions`: Options interface for embedding player iframe.
+- `BackdropOptions`: Settings of the blurred backdrop of a media narrower than its frame (source, ratio, blur, brightness, mosaicSize).
 - `ThumbnailOptions`: Configuration options for interactive thumbnails (mode, fitMode).
 - `TranscriptOptions`: Configuration interface for interactive transcripts (wordsContainer, iframePlayer, autoScroll).
 - `Word` / `WordsFile` / `WordsResult`: Shape of a words file (both the current object and the legacy list) and of the data returned by `generateWords`.

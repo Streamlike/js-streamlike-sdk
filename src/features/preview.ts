@@ -1,20 +1,28 @@
 // path: src/features/preview.ts
-import {InteractivePreviewOptions, MediaCustomization, MosaicFrame, PreviewMode, FitMode} from "../types/features";
+import {InteractivePreviewOptions, MediaCustomization, MosaicFrame, PreviewMode, FitMode, TimedMosaicFrame} from "../types/features";
 import {CallbackResponse} from "../types/api";
 
 /**
  * Parses a VTT (Web Video Text Tracks) formatted text to extract mosaic frame information.
  *
- * @param {string} text - The VTT data as a string. The text contains lines with URL and coordinate information.
- * @return {MosaicFrame[]} An array of objects representing mosaic frames, each containing the URL, x, y coordinates, width, and height.
+ * @param {string} text - The VTT data as a string. The text contains cue timings followed by lines with URL and coordinate information.
+ * @return {TimedMosaicFrame[]} An array of objects representing mosaic frames, each containing its start time, the URL, x, y coordinates, width, and height.
  */
-function _parseVttIndexes(text: string): MosaicFrame[] {
-    const coordinates: MosaicFrame[] = [];
+export function parseMosaicVtt(text: string): TimedMosaicFrame[] {
+    const coordinates: TimedMosaicFrame[] = [];
     const lineRegex = /^(.*?)#xywh=(\d+),(\d+),(\d+),(\d+)$/;
+    const timingRegex = /^(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)\s*-->/;
+    let start = 0;
     for (const line of text.trim().split('\n')) {
+        const timing = line.match(timingRegex);
+        if (timing) {
+            start = parseInt(timing[1] ?? '0', 10) * 3600 + parseInt(timing[2], 10) * 60 + parseFloat(timing[3]);
+            continue;
+        }
         const match = line.match(lineRegex);
         if (match) {
             coordinates.push({
+                start,
                 url: match[1].startsWith('//') ? `https:${match[1]}` : match[1],
                 x: parseInt(match[2], 10),
                 y: parseInt(match[3], 10),
@@ -379,7 +387,7 @@ export async function generateThumbnail(
             if (debug) console.warn(`Media VTT not found.`);
             return {res: true, data: null, errors: error};
         }
-        allFrames = _parseVttIndexes(await response.text());
+        allFrames = parseMosaicVtt(await response.text());
         calculateAndSampleFrames();
         if (allFrames.length === 0 && debug) console.warn("No frames found.");
         return {res: true, data: {framesCount: allFrames.length}, errors: null};

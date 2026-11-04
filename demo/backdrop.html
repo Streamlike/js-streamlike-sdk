@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamlike JS SDK - Blurred backdrop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #backdrop-form { flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+        #backdrop-form .field { display: flex; flex-direction: column; gap: .3rem; font-size: .9rem; }
+        #backdrop-form .field.wide { flex: 1 1 100%; }
+        #backdrop-form select { padding: .45rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+        #backdrop-form input[type="range"] { accent-color: #293c5a; }
+        .note {
+            margin: 1rem 0; padding: .75rem 1rem; border-left: 4px solid #d97706;
+            background: #fffbeb; border-radius: 4px; font-size: .9rem; line-height: 1.6;
+        }
+        #status { margin-top: .75rem; font-size: .9rem; color: #475569; min-height: 1.4em; }
+        #snippet { margin: 1rem 0 0; padding: .75rem 1rem; background: #eef; border-radius: 4px; font-size: .85rem; overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="streamlike-logo.svg" alt="Streamlike Logo" class="logo">
+    <h1>Streamlike JS SDK - Blurred backdrop</h1>
+    <p>
+        The <code>backdrop</code> option of <code>setResponsiveIframe</code> keeps a media narrower than its frame
+        centred in its own format, and fills the sides with a blurred, enlarged version of itself.
+    </p>
+    <a href="index.html" target="_self">Back</a>
+
+    <p class="note">
+        Paste the id of a vertical media below. The default media is 16:9: choose a wider frame to see the backdrop on it.<br>
+        The fullscreen of the player applies to the iframe alone and shows the video without the backdrop.
+    </p>
+
+    <form id="backdrop-form">
+        <div class="field wide">
+            <label for="media-id">Media ID</label>
+            <input type="text" id="media-id" required value="9dd61d7f5e077fdb">
+        </div>
+        <div class="field wide">
+            <label for="sltoken">Token (sltoken, for a protected media)</label>
+            <input type="text" id="sltoken">
+        </div>
+        <div class="field">
+            <label for="source">Source</label>
+            <select id="source">
+                <option value="mosaic" selected>Mosaic (follows the video)</option>
+                <option value="cover">Cover (fixed)</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="ratio">Frame</label>
+            <select id="ratio">
+                <option value="1.7777778">16:9</option>
+                <option value="2.3333333" selected>21:9</option>
+                <option value="1.3333333">4:3</option>
+                <option value="1">1:1</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="mosaic-size">Mosaic size</label>
+            <select id="mosaic-size">
+                <option value="large" selected>Large</option>
+                <option value="small">Small</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="blur">Blur: <span id="blur-value"></span> px</label>
+            <input type="range" id="blur" min="0" max="80" step="1" value="30">
+        </div>
+        <div class="field">
+            <label for="brightness">Brightness: <span id="brightness-value"></span></label>
+            <input type="range" id="brightness" min="0.2" max="1" step="0.05" value="0.7">
+        </div>
+        <label><input type="checkbox" id="enabled" checked> Backdrop</label>
+        <button type="submit">Load Player</button>
+    </form>
+
+    <div id="player-container"></div>
+    <div id="status"></div>
+    <pre id="snippet"></pre>
+</div>
+
+<script type="module">
+    import * as Streamlike from '../dist/index.mjs';
+
+    const field = id => document.getElementById(id);
+    const container = field('player-container');
+    const status = field('status');
+    const snippet = field('snippet');
+
+    const syncValues = () => {
+        field('blur-value').textContent = field('blur').value;
+        field('brightness-value').textContent = field('brightness').value;
+    };
+
+    async function load() {
+        const mediaId = field('media-id').value.trim();
+        if (!mediaId) return;
+
+        const options = {};
+        const sltoken = field('sltoken').value.trim();
+        if (sltoken) options.playerParams = {sltoken};
+        if (field('enabled').checked) {
+            options.backdrop = {
+                source: field('source').value,
+                ratio: Number(field('ratio').value),
+                blur: Number(field('blur').value),
+                brightness: Number(field('brightness').value),
+                mosaicSize: field('mosaic-size').value
+            };
+        }
+        snippet.textContent = `setResponsiveIframe('${mediaId}', 'player-container', ${JSON.stringify(options, null, 4)});`;
+        status.textContent = 'Loading…';
+
+        const response = await Streamlike.setResponsiveIframe(mediaId, container, options);
+        if (!response.res) {
+            status.textContent = response.errors;
+            return;
+        }
+        const mediaRatio = response.data?.metadata.global.ratio;
+        if (!mediaRatio) {
+            status.textContent = 'Media not found: the player is shown without backdrop.';
+            return;
+        }
+        const active = options.backdrop && mediaRatio < options.backdrop.ratio - 0.01;
+        status.textContent = `Media ratio: ${Number(mediaRatio).toFixed(2)}. `
+            + (active ? 'Backdrop active.' : 'No backdrop: the media fills the frame or the option is off.');
+    }
+
+    field('backdrop-form').addEventListener('submit', event => {
+        event.preventDefault();
+        load();
+    });
+    document.querySelectorAll('#backdrop-form select, #backdrop-form input[type="range"], #enabled')
+        .forEach(input => input.addEventListener('change', load));
+    document.querySelectorAll('#backdrop-form input[type="range"]')
+        .forEach(input => input.addEventListener('input', syncValues));
+
+    syncValues();
+    load();
+</script>
+
+</body>
+</html>

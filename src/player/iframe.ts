@@ -1,9 +1,10 @@
 // path: src/playerParams/iframeParams.ts
-import {IframeOptions, IframeParams, TypePlayerId} from "../types/player";
+import {BackdropSource, IframeOptions, IframeParams, TypePlayerId} from "../types/player";
 import { getWsMedia} from "../api/media";
 import {Media, MediaCallbackResponse} from "../types/api";
 import {buildUrl} from "../utils/api";
 import {MediaParams} from "../types/media";
+import {clearBackdrop, mountBackdrop, resolveBackdropOptions} from "./backdrop";
 
 
 /**
@@ -92,8 +93,20 @@ export async function setResponsiveIframe(
     const mediaParams: MediaParams = {}
     let ratio = 16 / 9;
 
-    const createIframe = (src: string, currentRatio: number) => {
-        embedPlayerIframe(divParent, src, currentRatio, {...iframeParams, id: `media-${id}`}, debug);
+    const backdropOptions = resolveBackdropOptions(options?.backdrop);
+    // The backdrop follows the playback through the events of the player.
+    if (backdropOptions?.source === BackdropSource.Mosaic && typePlayerId !== TypePlayerId.streamout) {
+        playerParams.events = true;
+    }
+
+    const createIframe = (src: string, currentRatio: number, media: Media | null = null) => {
+        clearBackdrop(divParent);
+        // Without a media there is no ratio to compare the frame with, nor anything to blur.
+        const backdrop = backdropOptions && media
+            ? mountBackdrop(divParent, currentRatio, media.metadata.customization, backdropOptions, debug)
+            : null;
+        const iframe = embedPlayerIframe(backdrop?.stage ?? divParent, src, currentRatio, {...iframeParams, id: `media-${id}`}, debug);
+        backdrop?.follow(iframe);
     };
 
     let endpoint = '/play';
@@ -148,7 +161,7 @@ export async function setResponsiveIframe(
         if (baseOptions.debug) console.error("Could not fetch media ratio, using default.", error);
 
     }
-    createIframe(srcPlayer, ratio || 16 / 9);
+    createIframe(srcPlayer, ratio || 16 / 9, media);
     if (debug) {
         console.groupEnd();
     }

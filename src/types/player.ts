@@ -1,6 +1,7 @@
 // path: src/types/playerParams.ts
 
 import {BaseOptions} from "./api";
+import {MosaicSize} from "./features";
 
 /**
  * Represents types of identifiers used for mediaParams.
@@ -33,6 +34,39 @@ export interface IframeOptions {
     playerParams?: PlayerParams;
     iframeParams?: IframeParams;
     baseOptions?: BaseOptions;
+    /**
+     * Fills the sides of a media narrower than the frame with a blurred, enlarged
+     * version of itself. `true` applies the default settings.
+     */
+    backdrop?: boolean | BackdropOptions;
+}
+
+/**
+ * What the blurred backdrop is made of.
+ */
+export enum BackdropSource {
+    /** The frames of the storyboard, following the playback. Falls back to the cover. */
+    Mosaic = 'mosaic',
+    /** The cover, for a backdrop that never moves */
+    Cover = 'cover'
+}
+
+/**
+ * Settings of the blurred backdrop.
+ *
+ * Properties:
+ * - `source` (optional): What the backdrop is made of. Defaults to `BackdropSource.Mosaic`.
+ * - `ratio` (optional): Aspect ratio (width / height) of the frame. A media at least as wide plays as usual. Defaults to 16 / 9.
+ * - `blur` (optional): Radius of the blur, in pixels. Defaults to 30.
+ * - `brightness` (optional): Brightness of the backdrop, 1 leaving it unchanged. Defaults to 0.7.
+ * - `mosaicSize` (optional): Storyboard to read first. Falls back to the other one when it is missing. Defaults to `MosaicSize.Large`.
+ */
+export interface BackdropOptions {
+    source?: BackdropSource;
+    ratio?: number;
+    blur?: number;
+    brightness?: number;
+    mosaicSize?: MosaicSize;
 }
 
 /**

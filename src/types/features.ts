@@ -94,6 +94,14 @@ export interface MosaicFrame {
     height: number;
 }
 
+/**
+ * A mosaic frame with its place in the media.
+ */
+export interface TimedMosaicFrame extends MosaicFrame {
+    /** Second of the media the frame is shown from */
+    start: number;
+}
+
 export interface InteractivePreviewOptions extends debugOptions {
     mode?: PreviewMode;
     duration?: number;

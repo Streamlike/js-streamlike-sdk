@@ -1,4 +1,13 @@
 # Changelog
+## [3.12.0] - 2026-11-04
+
+### New Features (Minor)
+- **`backdrop` option of `setResponsiveIframe`**: a media narrower than its frame, typically a vertical video, stays centred in its own format and a blurred, enlarged version of itself fills the frame instead of black bars. `backdrop: true` applies the defaults; `BackdropOptions` sets `source`, `ratio`, `blur`, `brightness` and `mosaicSize`. A media at least as wide as the frame plays as usual.
+- With `source: 'mosaic'`, the default, the backdrop follows the playback through the frames of the storyboard, about one per second, with a fade between them, and the player is loaded with `events` enabled. It shows the cover until the first frame and on a media without storyboard; `source: 'cover'` keeps it there. The other storyboard is read when the requested one is missing.
+- The backdrop lives in the page, around the iframe: the fullscreen of the player applies to the iframe alone and shows the video without it.
+- New type: `TimedMosaicFrame`, a `MosaicFrame` with its place in the media.
+- New demo: `demo/backdrop.html`.
+
 ## [3.11.0] - 2026-10-27
 
 ### New Features (Minor)
