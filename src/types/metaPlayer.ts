@@ -1,6 +1,6 @@
 // path: src/types/metaPlayer.ts
 
-import {BaseOptions, CallbackResponse, Media} from "./api";
+import {AudioTrack, BaseOptions, CallbackResponse, Media} from "./api";
 import {IframeParams, PlayerParams} from "./player";
 
 /**
@@ -561,6 +561,14 @@ export interface MetaPlayerTransportOptions {
      */
     layerToggles?: boolean;
     /**
+     * The subtitles and audio button, opening a panel to pick the subtitles —
+     * or none — and the audio track. Shown only when the media declares
+     * subtitles or several audio tracks.
+     * Classes: `{prefix}-tracks`, `{prefix}-tracks-panel`, `{prefix}-track`
+     * @default true
+     */
+    tracks?: boolean;
+    /**
      * The help button, which opens the gestures and shortcuts in a bubble.
      * They used to sit under the bar at all times, which is a line of small
      * print nobody reads twice.
@@ -661,6 +669,18 @@ export interface MetaPlayerLabels {
     view?: string;
     /** Plural of the audience readout. @default "views" */
     views?: string;
+    /** Label of the subtitles and audio button. @default "Subtitles and audio" */
+    tracks?: string;
+    /** Title of the subtitles in the tracks panel. @default "Subtitles" */
+    subtitles?: string;
+    /** Title of the audio tracks in the tracks panel. @default "Audio" */
+    audio?: string;
+    /** The choice turning the subtitles off. @default "Off" */
+    subtitlesOff?: string;
+    /** Suffix of a closed captions track, `fr-cc`. @default "CC" */
+    closedCaptions?: string;
+    /** Suffix of an audio description track, `fr-ad`. @default "audio description" */
+    audioDescription?: string;
     /** Label of the help button. @default "Help" */
     help?: string;
     /** Label of the button closing the help. @default "Close" */
@@ -755,6 +775,7 @@ export interface MetaPlayerZoomState {
  * - `zoom`: the picture was zoomed or panned,
  * - `volume`: the volume or the mute state changed,
  * - `fullscreen`: the player entered or left fullscreen,
+ * - `tracks`: the subtitles or the audio track changed,
  * - `select`: a marker or a stage shape was clicked,
  * - `layers`: the items or the visibility of a layer changed.
  */
@@ -766,6 +787,7 @@ export interface MetaPlayerEvents {
     zoom: (state: MetaPlayerZoomState) => void;
     volume: (volume: number, muted: boolean) => void;
     fullscreen: (on: boolean) => void;
+    tracks: (subtitles: string | null, audio: string | null) => void;
     select: (items: MetaPlayerLayerItem[], layer: MetaPlayerLayer) => void;
     layers: (layer: MetaPlayerLayer) => void;
 }
@@ -818,6 +840,17 @@ export interface MetaPlayerOptions {
      * @default false
      */
     autostart?: boolean;
+    /**
+     * Subtitles shown at start: a language code as `/ws/media` gives it
+     * (`fr`, `fr-cc`), or `false` for none. Left out, the player decides.
+     * Written on the player URL as `subtitle=`.
+     */
+    subtitles?: string | false;
+    /**
+     * Audio track at start, by language (`en`, `en-ad`). Left out, the
+     * player decides. Written on the player URL as `audio_lng=`.
+     */
+    audio?: string;
     /**
      * The jog wheel. `false` leaves it out.
      */
@@ -907,6 +940,21 @@ export interface MetaPlayerOptions {
 }
 
 /**
+ * The tracks a media offers to choose from.
+ */
+export interface MetaPlayerTracks {
+    /**
+     * Subtitle languages, as `/ws/media` gives them: `fr-cc` is a track of its
+     * own, not a variant of `fr`.
+     */
+    subtitles: string[];
+    /**
+     * Audio tracks, empty when the media carries a single one.
+     */
+    audio: AudioTrack[];
+}
+
+/**
  * Data returned once the meta player is ready.
  */
 export interface MetaPlayerData {
@@ -991,6 +1039,27 @@ export interface MetaPlayerController extends CallbackResponse<MetaPlayerData> {
      * Mutes or unmutes, or forces one of the two. Returns the state reached.
      */
     toggleMute: (force?: boolean) => boolean;
+    /**
+     * The subtitles and audio tracks the media offers.
+     */
+    getTracks: () => MetaPlayerTracks;
+    /**
+     * Shows the subtitles in a language, or none with `null`.
+     */
+    setSubtitles: (language: string | null) => void;
+    /**
+     * Subtitles last chosen, `null` for none, `undefined` while the player
+     * decides.
+     */
+    getSubtitles: () => string | null | undefined;
+    /**
+     * Switches to the audio track of a language.
+     */
+    setAudio: (language: string) => void;
+    /**
+     * Audio track last chosen, `undefined` while the player decides.
+     */
+    getAudio: () => string | undefined;
     /**
      * Zooms around the centre of the picture by a factor, 1 changing nothing.
      */
@@ -1083,7 +1152,7 @@ export interface MetaPlayerController extends CallbackResponse<MetaPlayerData> {
      * Sends a command to the embedded player, for anything the controller does
      * not wrap — `["fullscreen"]` for instance, which acts inside the iframe.
      */
-    send: (command: (string | number)[]) => void;
+    send: (command: (string | number | boolean | null)[]) => void;
     /**
      * Removes every listener and empties the container.
      */

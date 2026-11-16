@@ -152,6 +152,11 @@ export interface MediaMetadata {
     customization: Customization;
     chapters?: ChapterContainer[];
     subtitles?: SubtitleContainer[];
+    /**
+     * The audio tracks of a media carrying several. Absent on a media with a single track:
+     * `global.is_multiple_audio` is what says whether there is anything to choose from.
+     */
+    audio_tracks?: AudioTrackContainer[];
     language_ids: Language[];
     playlists?: MediaPlaylistContainer[];
     /**
@@ -311,6 +316,24 @@ export interface SubtitleUrls {
     srt: string;
     m3u8: string;
     words?: string; // Optional property for word-level timing
+}
+
+/**
+ * Wrapper for an audio track.
+ */
+export interface AudioTrackContainer {
+    audio_track: AudioTrack;
+}
+
+/**
+ * An audio track. `language_id` is what the player is told to switch to; an `-ad` suffix
+ * marks a language's audio description.
+ */
+export interface AudioTrack {
+    language_id: string;
+    label?: string;
+    kind?: string;
+    default?: boolean;
 }
 
 /**

@@ -7,7 +7,8 @@ import {MetaPlayerState} from "../types/metaPlayer";
  */
 export type PlayerCommand =
     | ['play'] | ['pause'] | ['mute'] | ['unmute'] | ['fullscreen']
-    | ['seek', number] | ['speed', number] | ['volume', number];
+    | ['seek', number] | ['speed', number] | ['volume', number]
+    | ['subtitles', string | null] | ['audio', string];
 
 /**
  * Below this gap between two seeks the player saturates and stutters.
@@ -18,7 +19,8 @@ const SEEK_MIN_INTERVAL_MS = 90;
  * Drives the embedded Streamlike player through its `postMessage` API.
  *
  * Sent: `["play"]`, `["pause"]`, `["seek", s]`, `["speed", x]`, `["mute"]`,
- * `["unmute"]`, `["volume", 0..1]`, `["fullscreen"]`.
+ * `["unmute"]`, `["volume", 0..1]`, `["fullscreen"]`, `["subtitles", lang | null]`,
+ * `["audio", lang]`.
  * Received, with `events=1` on the player URL: `["sl-state", "play"|"pause"|"ended"]`
  * and `["sl-progress", s]`, as a JSON string or as an array depending on the
  * version of the player.
@@ -56,7 +58,7 @@ export class PlayerBridge {
         this.pendingSeek = null;
     }
 
-    send(command: PlayerCommand | (string | number)[]): void {
+    send(command: PlayerCommand | (string | number | boolean | null)[]): void {
         const iframe = this.frame();
         if (!iframe?.contentWindow) return;
         if (this.debug) console.debug('[metaPlayer] →', command);

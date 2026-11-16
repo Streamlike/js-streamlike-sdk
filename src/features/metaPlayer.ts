@@ -29,6 +29,7 @@ import {LayerSet} from "../metaplayer/layers";
 import {AudienceCurve} from "../metaplayer/curve";
 import {ZoomController} from "../metaplayer/zoom";
 import {injectMetaPlayerStyles} from "../metaplayer/styles";
+import {languageName, readTracks} from "../metaplayer/tracks";
 import {
     DEFAULT_SPEEDS,
     clamp,
@@ -75,6 +76,12 @@ const DEFAULT_LABELS: Required<MetaPlayerLabels> = {
     volume: 'Volume',
     fullscreen: 'Fullscreen',
     exitFullscreen: 'Exit fullscreen',
+    tracks: 'Subtitles and audio',
+    subtitles: 'Subtitles',
+    audio: 'Audio',
+    subtitlesOff: 'Off',
+    closedCaptions: 'CC',
+    audioDescription: 'audio description',
     audience: 'audience',
     view: 'view',
     views: 'views',
@@ -102,6 +109,7 @@ const DEFAULT_TRANSPORT: Required<Omit<MetaPlayerTransportOptions, 'rememberVolu
     fullscreen: true,
     frameSteps: true,
     layerToggles: false,
+    tracks: true,
     help: true
 };
 
@@ -153,6 +161,8 @@ const ICONS: Record<string, string> = {
     exitFullscreen: '<path d="M9 4h2v5H6V7h3zM13 4h2v3h3v2h-5zM6 15h5v5H9v-3H6zM13 15h5v2h-3v3h-2z"/>',
     zoomIn: '<circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/>'
         + '<path d="M14.8 14.8L20 20M8 10.5h5M10.5 8v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    tracks: '<rect x="3" y="5.5" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+        + '<path d="M6.5 11h4M13 11h4.5M6.5 14.5h7M16 14.5h1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
     help: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>'
         + '<path d="M9.4 9.3a2.7 2.7 0 1 1 3.3 2.6v1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
         + '<circle cx="12.6" cy="16.6" r="1.1"/>',
@@ -257,6 +267,11 @@ function _errorController(errors: string): MetaPlayerController {
         setVolume: noop,
         getVolume: () => 1,
         toggleMute: () => false,
+        getTracks: () => ({subtitles: [], audio: []}),
+        setSubtitles: noop,
+        getSubtitles: () => undefined,
+        setAudio: noop,
+        getAudio: () => undefined,
         zoomBy: noop,
         setZoom: noop,
         getZoom: () => zoom,
@@ -354,6 +369,8 @@ export async function generateMetaPlayer(
         playerParams = {},
         iframeParams,
         theme = {},
+        subtitles: initialSubtitles,
+        audio: initialAudio,
         debug = false,
         baseOptions = {}
     } = options;
@@ -417,7 +434,20 @@ export async function generateMetaPlayer(
     if (start > 0) params.tc = start;
     if (autostart) params.autostart = true;
 
-    const src = metaPlayerUrl(playerUrl ?? buildUrl('/play', params, baseOptions));
+    // The tracks chosen at start go on the URL: the player honours them from
+    // its first image, where a command would come too early.
+    const srcUrl = new URL(metaPlayerUrl(playerUrl ?? buildUrl('/play', params, baseOptions)));
+    if (initialSubtitles !== undefined) srcUrl.searchParams.set('subtitle', initialSubtitles === false ? '0' : initialSubtitles);
+    if (initialAudio) srcUrl.searchParams.set('audio_lng', initialAudio);
+    const src = srcUrl.toString();
+    const tracks = readTracks(media);
+    const urlSubtitle = srcUrl.searchParams.get('subtitle');
+    /** Subtitles last chosen, `null` for none, `undefined` while the player decides. */
+    let subtitles: string | null | undefined = urlSubtitle === null || urlSubtitle === '1'
+        ? undefined
+        : urlSubtitle === '0' ? null : urlSubtitle;
+    /** Audio track last chosen, `undefined` while the player decides. */
+    let audio: string | undefined = srcUrl.searchParams.get('audio_lng') ?? undefined;
     const iframeId = `${p}-player-${mediaId ?? permalink ?? 'media'}`;
 
     /* ---------------- The markup ---------------- */
@@ -515,6 +545,16 @@ export async function generateMetaPlayer(
         bar.appendChild(sound);
     }
 
+    // Subtitles and audio: a button opening a panel, only when there is a choice
+    const hasTrackChoice = tracks.subtitles.length > 0 || tracks.audio.length > 1;
+    const tracksButton = transport.tracks && hasTrackChoice
+        ? _button(`${p}-button ${p}-tracks`, _icon(p, 'tracks'), labels.tracks)
+        : null;
+    if (tracksButton) {
+        tracksButton.setAttribute('aria-expanded', 'false');
+        bar.appendChild(tracksButton);
+    }
+
     const fullscreenApi = _fullscreenApi();
     const fullscreenButton = transport.fullscreen && fullscreenApi
         ? _button(`${p}-button ${p}-fullscreen`, _icon(p, 'fullscreen'), labels.fullscreen)
@@ -607,6 +647,55 @@ export async function generateMetaPlayer(
         controls.appendChild(helpPanel);
     }
 
+    const subtitleChoices = new Map<string | null, HTMLButtonElement>();
+    const audioChoices = new Map<string, HTMLButtonElement>();
+    let tracksPanel: HTMLElement | null = null;
+    let tracksClose: HTMLButtonElement | null = null;
+    if (tracksButton) {
+        tracksPanel = _el('div', `${p}-tracks-panel`);
+        tracksPanel.hidden = true;
+        tracksPanel.setAttribute('role', 'dialog');
+        tracksPanel.setAttribute('aria-label', labels.tracks);
+        const suffixes = {cc: labels.closedCaptions, ad: labels.audioDescription};
+
+        const group = (title: string, className: string): HTMLElement => {
+            const box = _el('div', `${p}-tracks-group ${p}-tracks-${className}`);
+            box.setAttribute('role', 'group');
+            box.setAttribute('aria-label', title);
+            box.appendChild(_el('p', `${p}-tracks-title`, title));
+            const choices = _el('div', `${p}-tracks-choices`);
+            box.appendChild(choices);
+            tracksPanel!.appendChild(box);
+            return choices;
+        };
+        const choice = (parent: HTMLElement, text: string, title: string): HTMLButtonElement => {
+            const button = _button(`${p}-track`, '', title);
+            button.textContent = text; // a name read from the webservice: text, never markup
+            button.setAttribute('aria-pressed', 'false');
+            parent.appendChild(button);
+            return button;
+        };
+
+        if (tracks.subtitles.length > 0) {
+            const choices = group(labels.subtitles, 'subtitles');
+            subtitleChoices.set(null, choice(choices, labels.subtitlesOff, `${labels.subtitles}: ${labels.subtitlesOff}`));
+            for (const language of tracks.subtitles) {
+                const name = languageName(language, locale, suffixes);
+                subtitleChoices.set(language, choice(choices, name, `${labels.subtitles}: ${name}`));
+            }
+        }
+        if (tracks.audio.length > 1) {
+            const choices = group(labels.audio, 'audio');
+            for (const track of tracks.audio) {
+                const name = track.label || languageName(track.language_id, locale, suffixes);
+                audioChoices.set(track.language_id, choice(choices, name, `${labels.audio}: ${name}`));
+            }
+        }
+        tracksClose = _button(`${p}-button ${p}-button-small ${p}-tracks-close`, '\u2715', labels.closeHelp);
+        tracksPanel.appendChild(tracksClose);
+        controls.appendChild(tracksPanel);
+    }
+
     if (controls.childElementCount > 0) root.appendChild(controls);
     container.appendChild(root);
 
@@ -647,6 +736,7 @@ export async function generateMetaPlayer(
         zoom: new Set(),
         volume: new Set(),
         fullscreen: new Set(),
+        tracks: new Set(),
         select: new Set(),
         layers: new Set()
     };
@@ -668,7 +758,7 @@ export async function generateMetaPlayer(
         debug
     );
 
-    function send(command: (string | number)[]): void {
+    function send(command: (string | number | boolean | null)[]): void {
         bridge.send(command);
     }
 
@@ -691,6 +781,15 @@ export async function generateMetaPlayer(
     }
 
     /**
+     * Re-sends the tracks chosen before the player was ready: a command sent
+     * to a player still loading is lost.
+     */
+    function applyTracks(): void {
+        if (subtitles !== undefined) send(['subtitles', subtitles]);
+        if (audio !== undefined) send(['audio', audio]);
+    }
+
+    /**
      * Until the player has played, the picture does not follow a seek: it is
      * started muted, then paused at once.
      */
@@ -706,6 +805,7 @@ export async function generateMetaPlayer(
         if (reported === 'play' && !started) {
             started = true;
             applySound();
+            applyTracks();
             if (time > START_EPSILON_S) bridge.seek(time);
         }
         if (reported === 'play' && priming) {
@@ -812,7 +912,27 @@ export async function generateMetaPlayer(
         return muted;
     }
 
+    function setSubtitles(language: string | null): void {
+        subtitles = language;
+        send(['subtitles', language]);
+        renderTracks();
+        emit('tracks', subtitles, audio ?? null);
+    }
+
+    function setAudio(language: string): void {
+        audio = language;
+        send(['audio', language]);
+        renderTracks();
+        emit('tracks', subtitles ?? null, audio);
+    }
+
     /* ---------------- Rendering ---------------- */
+
+    function renderTracks(): void {
+        subtitleChoices.forEach((button, language) => button.setAttribute('aria-pressed', String(language === subtitles)));
+        audioChoices.forEach((button, language) => button.setAttribute('aria-pressed', String(language === audio)));
+        tracksButton?.classList.toggle('is-active', typeof subtitles === 'string');
+    }
 
     function renderPlay(): void {
         if (!playButton) return;
@@ -930,32 +1050,54 @@ export async function generateMetaPlayer(
         cleanups.push(() => node.removeEventListener(type, handler, opts));
     }
 
-    /** The help bubble: opens from the button, closes on a click away or Escape. */
-    if (helpButton && helpPanel && helpClose) {
-        const panel = helpPanel;
-        const button = helpButton;
-        const close = helpClose;
-        const openHelp = (open: boolean) => {
+    /**
+     * A bubble opening from a button, closing on its close button, a click
+     * away or Escape. Opening one closes the others.
+     */
+    const popovers: ((open: boolean) => void)[] = [];
+
+    function popover(
+        button: HTMLButtonElement,
+        panel: HTMLElement,
+        close: HTMLButtonElement,
+        focusOnOpen: () => HTMLElement = () => close
+    ): void {
+        const toggle = (open: boolean, refocus = true) => {
+            if (panel.hidden === !open) return;
             panel.hidden = !open;
             button.setAttribute('aria-expanded', String(open));
-            if (open) close.focus();
-            else button.focus();
+            if (open) focusOnOpen().focus();
+            else if (refocus) button.focus();
         };
-        button.addEventListener('click', event => {
-            event.stopPropagation();
-            openHelp(panel.hidden);
+        popovers.push(open => toggle(open, false));
+        button.addEventListener('click', () => {
+            const open = panel.hidden;
+            if (open) popovers.forEach(other => other(false));
+            toggle(open);
         });
-        close.addEventListener('click', () => openHelp(false));
+        close.addEventListener('click', () => toggle(false));
         listen(document, 'click', event => {
-            if (!panel.hidden && !panel.contains(event.target as Node)) openHelp(false);
+            const node = event.target as Node;
+            if (!panel.hidden && !panel.contains(node) && !button.contains(node)) toggle(false, false);
         });
         root.addEventListener('keydown', event => {
             if (event.key === 'Escape' && !panel.hidden) {
                 event.stopPropagation();
-                openHelp(false);
+                toggle(false);
             }
         });
     }
+
+    if (helpButton && helpPanel && helpClose) popover(helpButton, helpPanel, helpClose);
+    if (tracksButton && tracksPanel && tracksClose) {
+        popover(tracksButton, tracksPanel, tracksClose, () =>
+            subtitleChoices.get(subtitles ?? null)
+            ?? (audio !== undefined ? audioChoices.get(audio) : undefined)
+            ?? tracksPanel!.querySelector<HTMLElement>(`.${p}-track`)
+            ?? tracksClose!);
+    }
+    subtitleChoices.forEach((button, language) => button.addEventListener('click', () => setSubtitles(language)));
+    audioChoices.forEach((button, language) => button.addEventListener('click', () => setAudio(language)));
 
     playButton?.addEventListener('click', () => togglePlay());
     previousFrameButton?.addEventListener('click', () => step(-frame));
@@ -1049,7 +1191,7 @@ export async function generateMetaPlayer(
         root.addEventListener('keydown', event => {
             const node = event.target as HTMLElement;
             // The markers, the shapes and the speed handle their own keys
-            if (node.closest(`input, textarea, select, .${p}-timeline, .${p}-stage, .${p}-speed, .${p}-progress`)) return;
+            if (node.closest(`input, textarea, select, .${p}-timeline, .${p}-stage, .${p}-speed, .${p}-progress, .${p}-tracks-panel`)) return;
 
             const frameKeys = keyboard.frameKeys;
             let seconds: number | null = null;
@@ -1171,6 +1313,7 @@ export async function generateMetaPlayer(
     renderPlay();
     renderSpeed();
     renderVolume();
+    renderTracks();
     renderZoom();
     render();
     if (speedIndex !== normalIndex) reaffirmSpeed();
@@ -1209,6 +1352,11 @@ export async function generateMetaPlayer(
         setVolume,
         getVolume: () => volume,
         toggleMute,
+        getTracks: () => tracks,
+        setSubtitles,
+        getSubtitles: () => subtitles,
+        setAudio,
+        getAudio: () => audio,
         zoomBy: factor => zoom?.zoomBy(factor),
         setZoom: next => zoom?.setState(next),
         getZoom: () => zoomState,

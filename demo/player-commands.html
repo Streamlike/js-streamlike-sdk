@@ -19,12 +19,7 @@
 
         .commands { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.25rem; }
         .commands fieldset { border: 1px solid #e0e4e8; border-radius: 6px; padding: .75rem 1rem 1rem; }
-        .commands fieldset.recette { border-color: #fcd34d; background: #fffdf5; }
         .commands legend { font-weight: 700; color: #293c5a; }
-        .commands legend .tag {
-            margin-left: .4rem; padding: .05rem .35rem; border-radius: 3px; background: #b45309;
-            color: #fff; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-        }
         .row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .5rem; }
         .row + .row { margin-top: .5rem; }
         .row .caption { font-size: .78rem; font-weight: 700; color: #475569; min-width: 4.5rem; }
@@ -81,16 +76,13 @@
     <h1>Player commands</h1>
     <p>
         The player is driven from the page through its <code>postMessage</code> API. This page sends
-        every command it accepts: the transport ones, which work everywhere, and the four families that
-        pick a <strong>track</strong> or a <strong>panel</strong> — subtitles, audio, interactions and
-        chapters — which are not deployed in production yet.
+        every command it accepts: the transport ones, and the four families that pick a
+        <strong>track</strong> or a <strong>panel</strong> — subtitles, audio, interactions and chapters.
     </p>
     <div class="warning">
-        <strong>The four track families are not deployed in production yet.</strong> Sending one here is
-        expected to do nothing: a player swallows a command it does not know. That is the point of this
-        page — the <code>channel</code> line on the right tells a player that never answered from one
-        that answers everything except these four, which is the difference between "my page is broken"
-        and "the command is not deployed".
+        A player swallows a command it does not know, or a value it cannot apply, in silence: the
+        <code>channel</code> line on the right tells a player that never answered from one that answers,
+        which is the difference between "my page is broken" and "the value is wrong".
         <br>
         It opens on a media carrying subtitles and chapters, so the buttons are built from the tracks
         <code>/ws/media</code> really declares rather than from guesses.
@@ -155,8 +147,8 @@
                     </p>
                 </fieldset>
 
-                <fieldset class="recette">
-                    <legend>Subtitles <span class="tag">not deployed</span> — <code>["subtitles", …]</code></legend>
+                <fieldset>
+                    <legend>Subtitles — <code>["subtitles", …]</code></legend>
                     <div class="row" id="subtitles-buttons"></div>
                     <div class="row">
                         <input type="text" id="subtitles-free" placeholder="language code, e.g. fr">
@@ -171,8 +163,8 @@
                     </p>
                 </fieldset>
 
-                <fieldset class="recette">
-                    <legend>Audio <span class="tag">not deployed</span> — <code>["audio", …]</code></legend>
+                <fieldset>
+                    <legend>Audio — <code>["audio", …]</code></legend>
                     <div class="row" id="audio-buttons"></div>
                     <div class="row">
                         <input type="text" id="audio-free" placeholder="language code, e.g. en or en-ad">
@@ -188,8 +180,8 @@
                     </p>
                 </fieldset>
 
-                <fieldset class="recette">
-                    <legend>Interactions <span class="tag">not deployed</span> — <code>["interactions", …]</code></legend>
+                <fieldset>
+                    <legend>Interactions — <code>["interactions", …]</code></legend>
                     <div class="row" id="interactions-buttons"></div>
                     <div class="row">
                         <input type="text" id="interactions-free" placeholder="language code, e.g. fr">
@@ -204,8 +196,8 @@
                     </p>
                 </fieldset>
 
-                <fieldset class="recette">
-                    <legend>Chapters <span class="tag">not deployed</span> — <code>["chapters", …]</code></legend>
+                <fieldset>
+                    <legend>Chapters — <code>["chapters", …]</code></legend>
                     <div class="row" id="chapters-buttons"></div>
                     <div class="row">
                         <input type="text" id="chapters-free" placeholder="language code, e.g. en">

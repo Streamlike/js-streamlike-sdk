@@ -515,7 +515,8 @@ duration, the aspect ratio and the frame rate are read from `/ws/media`, unless 
 | Zoom | `zoom` | Zoom and pan inside the picture, up to three times the definition of the stream, on mouse, trackpad and touch alike |
 | Layers | `layers` | Sets of items placed in time, and optionally in the picture |
 | Audience curve | `audience` | Which parts were watched most, over the progress bar, **in views** |
-| Control bar | `transport` | Play, progress, times, volume, fullscreen, image-by-image steps, layer toggles, a help button — each one can be left out |
+| Control bar | `transport` | Play, progress, times, volume, subtitles and audio, fullscreen, image-by-image steps, layer toggles, a help button — each one can be left out |
+| Tracks at start | `subtitles`, `audio` | Subtitles (a language, or `false` for none) and audio track the player opens with |
 | Keyboard | `keyboard` | ←/→ ±1 s (Shift ±5 s), PageUp/PageDown ±30 s, `,` and `.` one image, Home/End, Space |
 
 Pass `false` to leave a part out entirely: `{jog: false, zoom: false}`.
@@ -595,7 +596,7 @@ await player.toggleFullscreen();              // the whole player, not the ifram
 player.destroy();
 ```
 
-Events: `ready`, `time`, `state`, `speed`, `zoom`, `volume`, `fullscreen`, `select`, `layers`.
+Events: `ready`, `time`, `state`, `speed`, `zoom`, `volume`, `fullscreen`, `tracks`, `select`, `layers`.
 
 ```javascript
 const off = player.on('select', (items, layer) => scrollToComment(items[0].id));
@@ -609,6 +610,22 @@ Two things worth knowing, both learned the hard way:
   `primeOnSeek: false` if a silent frame of playback is not acceptable,
 - **the position shown is the page's, not the player's.** During a gesture, and for a moment after a seek,
   the player still announces where it was; those reports are ignored, which is what makes the wheel smooth.
+
+#### Subtitles and audio
+The player's own interface is off, its track menus with it: the bar carries a button of its own, opening a
+panel to pick the subtitles — or none — and the audio track. It appears only when `/ws/media` declares
+subtitles or several audio tracks, and names each one in the `locale` of the player (`fr-cc` reads
+"French (CC)", `en-ad` "English (audio description)"). `transport.tracks: false` leaves it out;
+`getTracks()`, `setSubtitles(lang | null)` and `setAudio(lang)` drive the same thing from the page.
+
+```js
+const player = await generateMetaPlayer('meta-player', {mediaId: 'MEDIA_ID', subtitles: 'fr', audio: 'en'});
+player.on('tracks', (subtitles, audio) => console.log(subtitles, audio));
+```
+
+The choice at start goes on the player URL (`subtitle=`, `audio_lng=`); a change during playback is sent as
+the `["subtitles", lang | null]` and `["audio", lang]` commands of the player, so the playback goes on
+where it was.
 
 #### Styling
 
@@ -632,7 +649,7 @@ Beyond that, every element carries a class prefixed with `classPrefix` (`sl-meta
 | --- | --- |
 | `sl-meta` / `sl-meta-frame` / `-picture` / `-overlay` / `-stage` / `-zoom-reset` | Root, picture and the layer catching the gestures |
 | `sl-meta-controls` / `-bar` / `-row` / `-button` / `-button-small` / `-icon` / `-group` / `-hint` | The control bar |
-| `sl-meta-play` / `-mute` / `-volume` / `-fullscreen` / `-frame-previous` / `-frame-next` / `-slower` / `-faster` / `-speed` / `-zoom-in` / `-zoom-out` | Its controls |
+| `sl-meta-play` / `-mute` / `-volume` / `-tracks` / `-tracks-panel` / `-track` / `-fullscreen` / `-frame-previous` / `-frame-next` / `-slower` / `-faster` / `-speed` / `-zoom-in` / `-zoom-out` | Its controls |
 | `sl-meta-elapsed` / `-remaining` / `-progress` / `-progress-fill` / `-progress-thumb` | Position and progress |
 | `sl-meta-peek` (+ `is-always`, `is-empty`) / `-curve` / `-curve-path` / `-curve-cursor` / `-curve-tooltip` / `-curve-empty` | The audience curve |
 | `sl-meta-timeline` / `-lane` / `-marker` (+ `is-cluster`, `is-active`, `is-highlighted`) / `-span` / `-preview` / `-preview-item` / `-preview-head` / `-preview-text` / `-preview-more` | The layers on the timeline |
@@ -701,7 +718,7 @@ own markers or writing its own controls: `audienceBuckets`, `curvePath`, `curveA
 - `generateThumbnail(target, mediaCustomization, options)`: Generates an interactive preview thumbnail.
 - `generateWords(url, options)`: Generates an interactive transcript synchronized with video playback.
 - `generateTrimmer(target, options)`: Generates an interactive video segment trimmer.
-- `generateMetaPlayer(target, options)`: Generates a meta player — the Streamlike player without its own interface, driven from the page, with a jog wheel, 21 playback speeds, zoom inside the picture, layers of timed and placed items and the audience curve. Returns a `MetaPlayerController` (`play`, `pause`, `togglePlay`, `seek`, `step`, `stepFrames`, `getTime`, `getDuration`, `getState`, `setSpeed`, `getSpeed`, `setVolume`, `toggleMute`, `zoomBy`, `setZoom`, `resetZoom`, `setLayerItems`, `reloadLayer`, `toggleLayer`, `addLayer`, `removeLayer`, `getLayers`, `highlight`, `setAudienceCurve`, `reloadAudience`, `isFullscreen`, `toggleFullscreen`, `on`, `off`, `getElements`, `send`, `destroy`).
+- `generateMetaPlayer(target, options)`: Generates a meta player — the Streamlike player without its own interface, driven from the page, with a jog wheel, 21 playback speeds, zoom inside the picture, layers of timed and placed items and the audience curve. Returns a `MetaPlayerController` (`play`, `pause`, `togglePlay`, `seek`, `step`, `stepFrames`, `getTime`, `getDuration`, `getState`, `setSpeed`, `getSpeed`, `setVolume`, `toggleMute`, `getTracks`, `setSubtitles`, `getSubtitles`, `setAudio`, `getAudio`, `zoomBy`, `setZoom`, `resetZoom`, `setLayerItems`, `reloadLayer`, `toggleLayer`, `addLayer`, `removeLayer`, `getLayers`, `highlight`, `setAudienceCurve`, `reloadAudience`, `isFullscreen`, `toggleFullscreen`, `on`, `off`, `getElements`, `send`, `destroy`).
 - `audienceBuckets(seconds, duration, buckets = 100)`: Turns the per-second playback counts of the engagement report into the audience curve the meta player draws.
 - `metaPlayerStyles(prefix)`: The default stylesheet of the meta player, as a string.
 - `generatePlaylistPlayer(target, options)`: Generates a playlist player with navigation, information panel and shareable timecoded links. Returns a `PlaylistPlayerController` (`play`, `pause`, `seek`, `next`, `previous`, `playIndex`, `playMedia`, `loadMore`, `getCurrentIndex`, `getCurrentMedia`, `getMedias`, `getTotal`, `getCurrentTime`, `isFullscreen`, `toggleFullscreen`, `getShareUrl`, `destroy`).

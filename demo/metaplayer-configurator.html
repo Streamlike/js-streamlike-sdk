@@ -181,6 +181,8 @@
         previousFrame: 'Image précédente', nextFrame: 'Image suivante',
         mute: 'Couper le son', unmute: 'Rétablir le son', volume: 'Volume',
         fullscreen: 'Plein écran', exitFullscreen: 'Quitter le plein écran',
+        tracks: 'Sous-titres et audio', subtitles: 'Sous-titres', audio: 'Audio', subtitlesOff: 'Aucun',
+        closedCaptions: 'SME', audioDescription: 'audiodescription',
         audience: 'audience', view: 'vue', views: 'vues',
         noAudience: "Courbe d'audience pas encore disponible",
         layers: 'Calques', more: 'et {count} de plus', error: 'Impossible de charger le média.',
@@ -266,6 +268,7 @@
                 {key: 'elapsed', label: 'elapsed', type: 'bool', def: true},
                 {key: 'remaining', label: 'remaining', type: 'bool', def: true},
                 {key: 'volume', label: 'volume', type: 'bool', def: true},
+                {key: 'tracks', label: 'tracks', hint: 'subtitles and audio, when the media has a choice', type: 'bool', def: true},
                 {key: 'fullscreen', label: 'fullscreen', type: 'bool', def: true},
                 {key: 'frameSteps', label: 'frameSteps', type: 'bool', def: true},
                 {key: 'layerToggles', label: 'layerToggles', type: 'bool', def: false},
@@ -290,6 +293,8 @@
                 {key: 'primeOnSeek', label: 'primeOnSeek', hint: 'silent start so seeks land', type: 'bool', def: true},
                 {key: 'showHours', label: 'showHours', type: 'bool', def: false},
                 {key: 'autostart', label: 'autostart', type: 'bool', def: false},
+                {key: 'subtitles', label: 'subtitles', hint: 'at start: a language, or false', type: 'text', def: ''},
+                {key: 'audio', label: 'audio', hint: 'at start: a language', type: 'text', def: ''},
                 {key: 'french', label: 'labels + locale in French', type: 'bool', def: false}
             ]
         }
@@ -558,6 +563,10 @@
         if (root.primeOnSeek === false) options.primeOnSeek = false;
         if (root.showHours) options.showHours = true;
         if (root.autostart) options.autostart = true;
+        const subtitles = (root.subtitles ?? '').trim();
+        if (subtitles) options.subtitles = subtitles === 'false' || subtitles === '0' ? false : subtitles;
+        const audio = (root.audio ?? '').trim();
+        if (audio) options.audio = audio;
         if (root.french) {
             options.locale = 'fr-FR';
             options.labels = LABELS_FR;

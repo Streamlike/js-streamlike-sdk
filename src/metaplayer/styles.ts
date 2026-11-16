@@ -4,7 +4,7 @@
  * Version stamped on the injected stylesheet. A sheet left in the page by
  * another version of the SDK is replaced rather than kept on its id alone.
  */
-const SDK_STYLES_VERSION = '3.11.0';
+const SDK_STYLES_VERSION = '3.13.0';
 
 /**
  * Rules applied while the player holds the fullscreen: the picture takes the
@@ -278,6 +278,26 @@ export function metaPlayerStyles(p: string): string {
 .${p}-help-panel[hidden] { display: none; }
 .${p}-help-line { margin: 0; font-size: .72rem; line-height: 1.5; opacity: .85; }
 .${p}-help-close { position: absolute; top: .3rem; right: .3rem; }
+.${p}-tracks.is-active { color: var(--sl-meta-accent); }
+.${p}-tracks-panel {
+    position: relative; margin: 0; padding: .7rem 2.2rem .7rem .9rem;
+    border-radius: calc(var(--sl-meta-radius) / 2); background: rgba(255, 255, 255, .1);
+    display: flex; flex-direction: column; gap: .6rem;
+}
+.${p}-tracks-panel[hidden] { display: none; }
+.${p}-tracks-group { display: flex; flex-direction: column; gap: .3rem; }
+.${p}-tracks-title { margin: 0; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.${p}-tracks-choices { display: flex; flex-wrap: wrap; gap: .3rem; }
+.${p}-track {
+    padding: .25rem .7rem; border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px;
+    background: transparent; color: var(--sl-meta-text); font: inherit; font-size: .75rem; cursor: pointer;
+}
+.${p}-track:hover { background: rgba(255, 255, 255, .12); }
+.${p}-track[aria-pressed="true"] {
+    border-color: var(--sl-meta-accent); background: var(--sl-meta-accent); color: var(--sl-meta-accent-text);
+}
+.${p}-track:focus-visible { outline: 2px solid var(--sl-meta-accent); outline-offset: 2px; }
+.${p}-tracks-close { position: absolute; top: .3rem; right: .3rem; }
 .${p}-hint { margin: 0; font-size: .68rem; line-height: 1.5; opacity: .7; }
 .${p}-message { padding: 1rem; text-align: center; font-size: .85rem; opacity: .8; }
 

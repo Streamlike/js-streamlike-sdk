@@ -1,4 +1,14 @@
 # Changelog
+## [3.13.0] - 2026-11-16
+
+### New Features (Minor)
+- **Subtitles and audio in the meta player**: with the player's own interface off, its track menus were gone. The bar now carries a button opening a panel to pick the subtitles — or none — and the audio track, shown only when the media declares subtitles or several audio tracks, each named in the player's locale (`fr-cc` → "French (CC)"). `transport.tracks: false` leaves it out.
+- New options `subtitles` (a language, or `false`) and `audio`, written on the player URL as `subtitle=` and `audio_lng=`. New controller methods `getTracks`, `setSubtitles`, `getSubtitles`, `setAudio`, `getAudio`, and a `tracks` event. A change during playback is sent as the `["subtitles", …]` / `["audio", …]` commands of the player, so the playback goes on where it was.
+- `demo/metaplayer-configurator.html`: `transport.tracks` toggle, and `subtitles` / `audio` fields for the tracks at start.
+- `demo/player-commands.html`: the subtitles, audio, interactions and chapters commands are in production, the "not deployed" warnings are gone.
+- New labels: `tracks`, `subtitles`, `audio`, `subtitlesOff`, `closedCaptions`, `audioDescription`.
+- Types: `audio_tracks` on `MediaMetadata` (`AudioTrackContainer`, `AudioTrack`), `audio_lng` on `PlayerParams`, `MetaPlayerTracks`.
+
 ## [3.12.0] - 2026-11-04
 
 ### New Features (Minor)

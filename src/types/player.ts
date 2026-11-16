@@ -580,6 +580,15 @@ export interface PlayerParams {
     subtitle?: string;
 
     /**
+     * Selects the audio track by language, on a media carrying several.
+     * An `-ad` suffix targets a language's audio description. Ex: audio_lng=en or audio_lng=en-ad
+     * @default -
+     * @streamlive no
+     * @streamout no
+     */
+    audio_lng?: string;
+
+    /**
      * Forces the language or disables the search in the subtitles.
      * Ex: subtitle_deep_links=en or subtitle_deep_links=0
      * @default 1
